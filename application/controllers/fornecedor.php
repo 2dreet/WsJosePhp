@@ -9,11 +9,8 @@ class Fornecedor extends CI_Controller {
 
     public function getAllfornecedor() {
         $data = json_decode(file_get_contents('php://input'), true);
-
         $jwtUtil = new JwtUtil();
-        $token = array('id' => 1);
-//        $token = $jwtUtil->encode(json_encode($token));
-        
+
         if ($data['token'] != null && $jwtUtil->decode($data['token'])) {
             $this->load->database();
             $query = $this->db->query("SELECT * FROM fornecedor where ativo = true and id_usuario = 1");
@@ -29,7 +26,7 @@ class Fornecedor extends CI_Controller {
             }
             header('Content-Type: application/json; charset=utf-8');
             $listaRetorno[] = array('dados' => $listaFornecedor);
-            $listaRetorno[] = array('token' => $token);
+            $listaRetorno[] = array('token' => $data['token']);
             echo json_encode($listaRetorno);
         } else {
             echo json_encode(array('token' => false));
@@ -46,13 +43,26 @@ class Fornecedor extends CI_Controller {
 
     public function updateFornecedor() {
         $data = json_decode(file_get_contents('php://input'), true);
-        $fornecedor = array('descricao' => $data['descricao'], 'email' => $data['email'], 'telefone' => $data['telefone']);
+        $jwtUtil = new JwtUtil();
+        $token = $data['token'];
+        $dados = $data['dados'];
+        $retorno = null;
+//        if ($token != null && $jwtUtil->decode($token)) {
+        if ($token != null && $jwtUtil->decode($token)) {
+            $fornecedor = array('descricao' => $dados['descricao'], 'email' => $dados['email'], 'telefone' => $dados['telefone']);
 
-        $this->db->where('id', $data['id']);
-        $this->db->update('fornecedor', $fornecedor);
+            $this->load->database();
+            $this->db->where('id', $dados['id']);
+            $this->db->update('fornecedor', $fornecedor);
 
+            $retorno = array('token' => $token);
+        } else {
+            $retorno = array('token' => false);
+        }
+        
         header('Content-Type: application/json; charset=utf-8');
-        echo json_encode($fornecedor);
+//        echo json_encode(array('token' => $token));
+        echo json_encode($retorno);
     }
 
     public function removeFornecedor() {
