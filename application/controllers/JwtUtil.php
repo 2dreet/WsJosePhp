@@ -14,7 +14,7 @@ class JwtUtil {
         return $jwt->encode($texto, $this->key);
     }
 
-    public function decode($valorJWT) {
+    public function validate($valorJWT) {
         $jwt = new JWT();
         try {
             $jwt->decode($valorJWT, $this->key, array('HS256'));
@@ -23,5 +23,15 @@ class JwtUtil {
             return false;
         }
     }
+    
+    public function decode($valorJWT) {
+        $jwt = new JWT();
+        try {
+            return $jwt->decode($valorJWT, $this->key, array('HS256'));
+        } catch (UnexpectedValueException $e) {
+            return null;
+        }
+    }
+    
 
 }

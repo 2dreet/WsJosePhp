@@ -11,9 +11,12 @@ class Fornecedor extends CI_Controller {
         $data = json_decode(file_get_contents('php://input'), true);
         $jwtUtil = new JwtUtil();
 
-        if ($data['token'] != null && $jwtUtil->decode($data['token'])) {
+        if ($data['token'] != null && $jwtUtil->validate($data['token'])) {
+
+            $dadosToken = json_decode($jwtUtil->decode($data['token']));
+
             $this->load->database();
-            $query = $this->db->query("SELECT * FROM fornecedor where ativo = true and id_usuario = 1");
+            $query = $this->db->query("SELECT * FROM fornecedor where ativo = true and id_usuario = " . $dadosToken->id);
             foreach ($query->result() as $row) {
                 //Obtem o usuario
 //            $queryUsuario = $this->db->query("SELECT * FROM usuario where id = " . $row->id_usuario);
@@ -47,19 +50,21 @@ class Fornecedor extends CI_Controller {
         $token = $data['token'];
         $dados = $data['dados'];
         $retorno = null;
-//        if ($token != null && $jwtUtil->decode($token)) {
-        if ($token != null && $jwtUtil->decode($token)) {
+        if ($token != null && $jwtUtil->validate($token)) {
             $fornecedor = array('descricao' => $dados['descricao'], 'email' => $dados['email'], 'telefone' => $dados['telefone']);
+
+            $dadosToken = json_decode($jwtUtil->decode($token));
 
             $this->load->database();
             $this->db->where('id', $dados['id']);
+            $this->db->where('id_usuario', $dadosToken->id);
             $this->db->update('fornecedor', $fornecedor);
 
             $retorno = array('token' => $token);
         } else {
             $retorno = array('token' => false);
         }
-        
+
         header('Content-Type: application/json; charset=utf-8');
 //        echo json_encode(array('token' => $token));
         echo json_encode($retorno);
