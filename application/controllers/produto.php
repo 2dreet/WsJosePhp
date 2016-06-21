@@ -20,9 +20,7 @@ class Produto extends CI_Controller {
                 $listaProduto[] = ($produto);
             }
 
-            $listaRetorno[] = array('dados' => $listaProduto);
-            $listaRetorno[] = array('token' => $token);
-            $retorno = $listaRetorno;
+            $retorno = array('token' => $token, 'dados' => $listaProduto);
         } else {
             $retorno = array('token' => false);
         }
@@ -49,20 +47,27 @@ class Produto extends CI_Controller {
     }
 
     public function updateProduto() {
-        $data = json_decode(file_get_contents('php://input'), true);
         $jwtUtil = new JwtUtil();
-        $token = $data['token'];
-        $dados = $data['dados'];
+        $imagem = file_get_contents($_FILES['file']['tmp_name']);
+        $dados = json_decode($_POST['dados']);
+        $token = $_POST['token'];
         $retorno = null;
         if ($token != null && $jwtUtil->validate($token)) {
-//            $produto = array('descricao' => $dados['descricao'], 'email' => $dados['email'], 'telefone' => $dados['telefone']);
-            $produto = array('imagem' => $dados);
-            $dadosToken = json_decode($jwtUtil->decode($token));
-            $this->load->database();
-//            $this->db->where('id', $dados['id']);
-            $this->db->where('id_usuario', $dadosToken->id);
-            $this->db->update('produto', $produto);
-            $retorno = array('token' => $token);
+            if ($dados != null) {
+
+                $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
+                    'estoque' => $dados->estoque, 'id_fornecedor' => $dados->id_fornecedor, 'imagem' => $imagem);
+
+                $dadosToken = json_decode($jwtUtil->decode($token));
+                $this->load->database();
+                $this->db->where('id', $dados->id);
+                $this->db->where('id_usuario', $dadosToken->id);
+                $this->db->update('produto', $produto);
+
+                $retorno = array('token' => $token, 'sucesso' => true);
+            } else {
+                $retorno = array('token' => $token, 'sucesso' => false);
+            }
         } else {
             $retorno = array('token' => false);
         }
