@@ -80,9 +80,6 @@ class Produto extends CI_Controller {
                         'estoque' => $dados->estoque, 'id_fornecedor' => $fornecedor->id, 'imagem' => $imagem, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
                 }
 
-                $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
-                    'estoque' => $dados->estoque, 'id_fornecedor' => $fornecedor->id, 'imagem' => $imagem, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
-
                 $this->load->database();
                 $this->db->insert('produto', $produto);
 
