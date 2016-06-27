@@ -94,4 +94,45 @@ class Produto extends CI_Controller {
         echo json_encode($retorno);
     }
 
+    public function updatetProduto() {
+        $jwtUtil = new JwtUtil();
+        $imagem = false;
+        if (isset($_FILES['imagem']['tmp_name'])) {
+            $imagem = file_get_contents($_FILES['imagem']['tmp_name']);
+        }
+        $dados = json_decode($_POST['dados']);
+        $token = $_POST['token'];
+        $retorno = null;
+        if ($token != null && $jwtUtil->validate($token)) {
+            if ($dados != null) {
+                $dadosToken = json_decode($jwtUtil->decode($token));
+                $fornecedor = $dados->fornecedor;
+                if ($dados->valor == 0) {
+                    $dados->valor = 0.00;
+                }
+
+                if ($imagem == false) {
+                    $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
+                        'estoque' => $dados->estoque, 'id_fornecedor' => $fornecedor->id);
+                } else {
+                    $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
+                        'estoque' => $dados->estoque, 'id_fornecedor' => $fornecedor->id, 'imagem' => $imagem);
+                }
+
+                $this->load->database();
+                $this->db->where('id', $dados->id);
+                $this->db->where('id_usuario', $dadosToken->id);
+                $this->db->update('produto', $produto);
+
+                $retorno = array('token' => $token, 'sucesso' => true);
+            } else {
+                $retorno = array('token' => $token, 'sucesso' => false);
+            }
+        } else {
+            $retorno = array('token' => false);
+        }
+
+        echo json_encode($retorno);
+    }
+
 }
