@@ -74,10 +74,10 @@ class Produto extends CI_Controller {
                 }
                 if ($imagem == false) {
                     $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
-                        'estoque' => $dados->estoque, 'id_fornecedor' => $fornecedor->id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+                        'estoque' => 0, 'id_fornecedor' => $fornecedor->id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
                 } else {
                     $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
-                        'estoque' => $dados->estoque, 'id_fornecedor' => $fornecedor->id, 'imagem' => $imagem, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+                        'estoque' => 0, 'id_fornecedor' => $fornecedor->id, 'imagem' => $imagem, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
                 }
 
                 $this->load->database();
@@ -113,10 +113,10 @@ class Produto extends CI_Controller {
 
                 if ($imagem == false) {
                     $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
-                        'estoque' => $dados->estoque, 'id_fornecedor' => $fornecedor->id);
+                        'id_fornecedor' => $fornecedor->id);
                 } else {
                     $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
-                        'estoque' => $dados->estoque, 'id_fornecedor' => $fornecedor->id, 'imagem' => $imagem);
+                        'id_fornecedor' => $fornecedor->id, 'imagem' => $imagem);
                 }
 
                 $this->load->database();
@@ -134,7 +134,49 @@ class Produto extends CI_Controller {
 
         echo json_encode($retorno);
     }
-    
+
+    public function movimentarProduto() {
+        $jwtUtil = new JwtUtil();
+        $data = json_decode(file_get_contents('php://input'), true);
+        $jwtUtil = new JwtUtil();
+        $token = $data['token'];
+        $dados = $data['dados'];
+        $retorno = null;
+        if ($token != null && $jwtUtil->validate($token)) {
+            if ($dados != null) {
+                $dadosToken = json_decode($jwtUtil->decode($token));
+
+                $estoque = $dados['estoque'];
+                if ($dados['tipo_movimentacao'] == 1) {
+                    $estoque = $estoque + $dados['estoque_movimento'];
+                } else if ($dados['tipo_movimentacao'] == 3) {
+                    $estoque = $estoque - $dados['estoque_movimento'];
+                } else if ($dados['tipo_movimentacao'] == 4) {
+                    $estoque = $estoque - $dados['estoque_movimento'];
+                } else if ($dados['tipo_movimentacao'] == 5) {
+                    $estoque = $dados['estoque_movimento'];
+                }
+                $produto = array('estoque' => $estoque);
+
+                $this->load->database();
+                $this->db->where('id', $dados->id);
+                $this->db->where('id_usuario', $dadosToken->id);
+                $this->db->update('produto', $produto);
+
+                $produtoMovimentacao = array('observacao' => $dados['observacao'], 'quantidade' => $dados['estoque_movimento'], 'data_movimento' => date('Y-m-d H:i'), 'id_produto' => $dados['id_produto'], 'tipo_movimentacao' => $dados['tipo_movimentacao'], 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+                $this->db->insert('produto_movimentacao', $produtoMovimentacao);
+                
+                $retorno = array('token' => $token, 'sucesso' => true);
+            } else {
+                $retorno = array('token' => $token, 'sucesso' => false);
+            }
+        } else {
+            $retorno = array('token' => false);
+        }
+
+        echo json_encode($retorno);
+    }
+
     public function deleteProduto() {
         $data = json_decode(file_get_contents('php://input'), true);
         $jwtUtil = new JwtUtil();
@@ -148,7 +190,7 @@ class Produto extends CI_Controller {
             $this->db->where('id', $dados['id']);
             $this->db->where('id_usuario', $dadosToken->id);
             $this->db->update('produto', $produto);
-            
+
             $retorno = array('token' => $token);
         } else {
             $retorno = array('token' => false);
