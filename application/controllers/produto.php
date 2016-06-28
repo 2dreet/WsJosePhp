@@ -134,5 +134,28 @@ class Produto extends CI_Controller {
 
         echo json_encode($retorno);
     }
+    
+    public function deleteProduto() {
+        $data = json_decode(file_get_contents('php://input'), true);
+        $jwtUtil = new JwtUtil();
+        $token = $data['token'];
+        $dados = $data['dados'];
+        $retorno = null;
+        if ($token != null && $jwtUtil->validate($token)) {
+            $produto = array('ativo' => '0');
+            $dadosToken = json_decode($jwtUtil->decode($token));
+            $this->load->database();
+            $this->db->where('id', $dados['id']);
+            $this->db->where('id_usuario', $dadosToken->id);
+            $this->db->update('produto', $produto);
+            
+            $retorno = array('token' => $token);
+        } else {
+            $retorno = array('token' => false);
+        }
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($retorno);
+    }
 
 }
