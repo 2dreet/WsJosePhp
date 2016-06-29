@@ -138,7 +138,6 @@ class Produto extends CI_Controller {
     public function movimentarProduto() {
         $jwtUtil = new JwtUtil();
         $data = json_decode(file_get_contents('php://input'), true);
-        $jwtUtil = new JwtUtil();
         $token = $data['token'];
         $dados = $data['dados'];
         $retorno = null;
