@@ -3,7 +3,7 @@
 |--------------------------------------------------------------------------
 | Base Site URL
 |--------------------------------------------------------------------------
-|
+
 | URL to your CodeIgniter root. Typically this will be your base URL,
 | WITH a trailing slash:
 |
@@ -21,6 +21,7 @@
 | a PHP script and you can easily do that on your own.
 |
 */
+date_default_timezone_set('Brazil/East');
 $config['base_url'] = $_SERVER['HTTP_HOST'];
 
 /*

@@ -35,6 +35,39 @@ class Produto extends CI_Controller {
         echo (json_encode($retorno));
     }
 
+    public function getMovimentacaoProduto() {
+        $data = json_decode(file_get_contents('php://input'), true);
+        $jwtUtil = new JwtUtil();
+        $token = $data['token'];
+        $dados = $data['id'];
+        $retorno = null;
+        if ($token != null && $jwtUtil->validate($token)) {
+            $retorno = array('token' => $token);
+            if ($dados != null) {
+                $listaMovimentacaoProduto = null;
+                $dadosToken = json_decode($jwtUtil->decode($token));
+                $this->load->database();
+                $query = $this->db->query("SELECT pm.id, pm.observacao, pm.quantidade, pm.data_movimento, tm.descricao, tm.id as tipo_movimentacao FROM produto_movimentacao pm inner join tipo_movimentacao tm on pm.tipo_movimentacao = tm.id"
+                        . " where pm.ativo = true and pm.id_usuario = " . $dadosToken->id . " and pm.id_produto = " . $dados
+                        . " ORDER BY data_movimento desc");
+                foreach ($query->result() as $row) {
+                    $movimentacaoProduto = array('id' => $row->id, 'observacao' => $row->observacao, 'quantidade' => $row->quantidade, 
+                        'data_movimento' => str_replace(" ", "T", $row->data_movimento), 'descricao' => $row->descricao, 'tipoMovimentacao' => $row->tipo_movimentacao);
+                    $listaMovimentacaoProduto[] = ($movimentacaoProduto);
+                }
+
+                $retorno = array('token' => $token, 'dados' => $listaMovimentacaoProduto);
+            } else {
+                $retorno = array('token' => $token, 'dados' => null);
+            }
+        } else {
+            $retorno = array('token' => false);
+        }
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo (json_encode($retorno));
+    }
+
     public function getProdutoImagem($idProduto, $token) {
         $jwtUtil = new JwtUtil();
         if (isset($token) && $token != null && $jwtUtil->validate($token)) {
@@ -136,33 +169,37 @@ class Produto extends CI_Controller {
     }
 
     public function movimentarProduto() {
-        $jwtUtil = new JwtUtil();
         $data = json_decode(file_get_contents('php://input'), true);
+        $jwtUtil = new JwtUtil();
         $token = $data['token'];
         $dados = $data['dados'];
         $retorno = null;
         if ($token != null && $jwtUtil->validate($token)) {
+            $retorno = array('token' => $token);
             if ($dados != null) {
+
+                $dadosTeste = json_encode($dados);
+
                 $dadosToken = json_decode($jwtUtil->decode($token));
 
                 $estoque = $dados['estoque'];
-                if ($dados['tipo_movimentacao'] == 1) {
+                if ($dados['tipoMovimentacao'] == "1") {
                     $estoque = $estoque + $dados['estoque_movimento'];
-                } else if ($dados['tipo_movimentacao'] == 3) {
+                } else if ($dados['tipoMovimentacao'] == "3") {
                     $estoque = $estoque - $dados['estoque_movimento'];
-                } else if ($dados['tipo_movimentacao'] == 4) {
+                } else if ($dados['tipoMovimentacao'] == "4") {
                     $estoque = $estoque - $dados['estoque_movimento'];
-                } else if ($dados['tipo_movimentacao'] == 5) {
+                } else if ($dados['tipoMovimentacao'] == "5") {
                     $estoque = $dados['estoque_movimento'];
                 }
                 $produto = array('estoque' => $estoque);
 
                 $this->load->database();
-                $this->db->where('id', $dados->id);
+                $this->db->where('id', $dados['id']);
                 $this->db->where('id_usuario', $dadosToken->id);
                 $this->db->update('produto', $produto);
 
-                $produtoMovimentacao = array('observacao' => $dados['observacao'], 'quantidade' => $dados['estoque_movimento'], 'data_movimento' => date('Y-m-d H:i'), 'id_produto' => $dados['id_produto'], 'tipo_movimentacao' => $dados['tipo_movimentacao'], 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+                $produtoMovimentacao = array('observacao' => $dados['estoque_movimento_observacao'], 'quantidade' => $dados['estoque_movimento'], 'data_movimento' => date("Y-m-d H:i:s"), 'id_produto' => $dados['id'], 'tipo_movimentacao' => $dados['tipoMovimentacao'], 'id_usuario' => $dadosToken->id, 'ativo' => '1');
                 $this->db->insert('produto_movimentacao', $produtoMovimentacao);
                 
                 $retorno = array('token' => $token, 'sucesso' => true);
@@ -173,6 +210,7 @@ class Produto extends CI_Controller {
             $retorno = array('token' => false);
         }
 
+        header('Content-Type: application/json; charset=utf-8');
         echo json_encode($retorno);
     }
 
