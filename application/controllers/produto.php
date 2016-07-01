@@ -7,14 +7,14 @@ include 'JwtUtil.php';
 
 class Produto extends CI_Controller {
 
-    public function getAllproduto($token) {
+    public function getAllproduto($token, $pagina) {
         $jwtUtil = new JwtUtil();
         $retorno = null;
-        if (isset($token) && $token != null && $jwtUtil->validate($token)) {
+        if (isset($token) && $token != null && $jwtUtil->validate($token) && isset($pagina) && $pagina >= 0) {
             $listaProduto = null;
             $dadosToken = json_decode($jwtUtil->decode($token));
             $this->load->database();
-            $query = $this->db->query("SELECT * FROM produto where ativo = true and id_usuario = " . $dadosToken->id);
+            $query = $this->db->query("SELECT * FROM produto where ativo = true and id_usuario = " . $dadosToken->id . " LIMIT " . $pagina . ",1");
             foreach ($query->result() as $row) {
                 $queryFornecedor = $this->db->query("SELECT * FROM fornecedor where ativo = true and id = " . $row->id_fornecedor);
                 $fornecedor = null;
@@ -26,7 +26,13 @@ class Produto extends CI_Controller {
                 $listaProduto[] = ($produto);
             }
 
-            $retorno = array('token' => $token, 'dados' => $listaProduto);
+            $totalRegistro = 0;
+            $query = $this->db->query("SELECT count(*) as count FROM produto where ativo = true and id_usuario = " . $dadosToken->id);
+            foreach ($query->result() as $row) {
+                $totalRegistro = $row->count;
+            }
+
+            $retorno = array('token' => $token, 'dados' => $listaProduto, 'totalRegistro' => $totalRegistro);
         } else {
             $retorno = array('token' => false);
         }
@@ -51,7 +57,7 @@ class Produto extends CI_Controller {
                         . " where pm.ativo = true and pm.id_usuario = " . $dadosToken->id . " and pm.id_produto = " . $dados
                         . " ORDER BY data_movimento desc");
                 foreach ($query->result() as $row) {
-                    $movimentacaoProduto = array('id' => $row->id, 'observacao' => $row->observacao, 'quantidade' => $row->quantidade, 
+                    $movimentacaoProduto = array('id' => $row->id, 'observacao' => $row->observacao, 'quantidade' => $row->quantidade,
                         'data_movimento' => str_replace(" ", "T", $row->data_movimento), 'descricao' => $row->descricao, 'tipoMovimentacao' => $row->tipo_movimentacao);
                     $listaMovimentacaoProduto[] = ($movimentacaoProduto);
                 }
@@ -201,7 +207,7 @@ class Produto extends CI_Controller {
 
                 $produtoMovimentacao = array('observacao' => $dados['estoque_movimento_observacao'], 'quantidade' => $dados['estoque_movimento'], 'data_movimento' => date("Y-m-d H:i:s"), 'id_produto' => $dados['id'], 'tipo_movimentacao' => $dados['tipoMovimentacao'], 'id_usuario' => $dadosToken->id, 'ativo' => '1');
                 $this->db->insert('produto_movimentacao', $produtoMovimentacao);
-                
+
                 $retorno = array('token' => $token, 'sucesso' => true);
             } else {
                 $retorno = array('token' => $token, 'sucesso' => false);
