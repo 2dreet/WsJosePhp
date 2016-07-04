@@ -7,17 +7,42 @@ include 'JwtUtil.php';
 
 class Produto extends CI_Controller {
 
-    public function getAllproduto($token, $pagina) {
+    public function getAllproduto() {
+        $data = json_decode(file_get_contents('php://input'), true);
         $jwtUtil = new JwtUtil();
+        $token = $data['token'];
+        $pagina = $data['pagina'];
+        $buscaAvancada = null;
         $retorno = null;
         if (isset($token) && $token != null && $jwtUtil->validate($token) && isset($pagina) && $pagina >= 0) {
+            $where = "";
+            if (isset($data['buscaAvancada'])) {
+                $buscaAvancada = $data['buscaAvancada'];
+                if (isset($buscaAvancada['descricao']) && $buscaAvancada['descricao'] != null && trim($buscaAvancada['descricao']) != "") {
+                    $where .= " AND descricao like '%" . $buscaAvancada['descricao'] . "%'";
+                }
+
+                if (isset($buscaAvancada['fornecedor']) && $buscaAvancada['fornecedor'] != null && trim($buscaAvancada['descricao']) != "") {
+                    $where .= " AND id_fornecedor = " . $buscaAvancada['fornecedor']['id'];
+                }
+
+                if (isset($buscaAvancada['estoquePositivo']) && $buscaAvancada['estoquePositivo'] != null && $buscaAvancada['estoquePositivo'] == true) {
+                    $where .= " AND estoque > 0 ";
+                }
+            }
             $listaProduto = null;
             $dadosToken = json_decode($jwtUtil->decode($token));
+            if ($pagina > 0) {
+                $pagina = $pagina * 10;
+            }
             $this->load->database();
-            $query = $this->db->query("SELECT * FROM produto where ativo = true and id_usuario = " . $dadosToken->id . " LIMIT " . $pagina . ",1");
+            $query = $this->db->query("SELECT * FROM produto where ativo = true and id_usuario = " . $dadosToken->id . $where . " LIMIT " . $pagina . ",10");
             foreach ($query->result() as $row) {
                 $queryFornecedor = $this->db->query("SELECT * FROM fornecedor where ativo = true and id = " . $row->id_fornecedor);
                 $fornecedor = null;
+
+
+
                 foreach ($queryFornecedor->result() as $rowFornecedor) {
                     $fornecedor = array('id' => $rowFornecedor->id, 'descricao' => $rowFornecedor->descricao, 'email' => $rowFornecedor->email, 'telefone' => $rowFornecedor->telefone);
                 }
@@ -27,7 +52,7 @@ class Produto extends CI_Controller {
             }
 
             $totalRegistro = 0;
-            $query = $this->db->query("SELECT count(*) as count FROM produto where ativo = true and id_usuario = " . $dadosToken->id);
+            $query = $this->db->query("SELECT count(*) as count FROM produto where ativo = true and id_usuario = " . $dadosToken->id . $where);
             foreach ($query->result() as $row) {
                 $totalRegistro = $row->count;
             }
@@ -46,6 +71,7 @@ class Produto extends CI_Controller {
         $jwtUtil = new JwtUtil();
         $token = $data['token'];
         $dados = $data['id'];
+        $pagina = $data['pagina'];
         $retorno = null;
         if ($token != null && $jwtUtil->validate($token)) {
             $retorno = array('token' => $token);
@@ -53,16 +79,28 @@ class Produto extends CI_Controller {
                 $listaMovimentacaoProduto = null;
                 $dadosToken = json_decode($jwtUtil->decode($token));
                 $this->load->database();
+
+                if ($pagina > 0) {
+                    $pagina = $pagina * 10;
+                }
+
                 $query = $this->db->query("SELECT pm.id, pm.observacao, pm.quantidade, pm.data_movimento, tm.descricao, tm.id as tipo_movimentacao FROM produto_movimentacao pm inner join tipo_movimentacao tm on pm.tipo_movimentacao = tm.id"
                         . " where pm.ativo = true and pm.id_usuario = " . $dadosToken->id . " and pm.id_produto = " . $dados
-                        . " ORDER BY data_movimento desc");
+                        . " ORDER BY data_movimento desc LIMIT " . $pagina . ", 10");
                 foreach ($query->result() as $row) {
                     $movimentacaoProduto = array('id' => $row->id, 'observacao' => $row->observacao, 'quantidade' => $row->quantidade,
                         'data_movimento' => str_replace(" ", "T", $row->data_movimento), 'descricao' => $row->descricao, 'tipoMovimentacao' => $row->tipo_movimentacao);
                     $listaMovimentacaoProduto[] = ($movimentacaoProduto);
                 }
 
-                $retorno = array('token' => $token, 'dados' => $listaMovimentacaoProduto);
+                $totalRegistro = 0;
+                $query = $this->db->query("SELECT count(*) as count FROM produto_movimentacao"
+                        . " where ativo = true and id_usuario = " . $dadosToken->id . " and id_produto = " . $dados);
+                foreach ($query->result() as $row) {
+                    $totalRegistro = $row->count;
+                }
+
+                $retorno = array('token' => $token, 'dados' => $listaMovimentacaoProduto, 'totalRegistro' => $totalRegistro);
             } else {
                 $retorno = array('token' => $token, 'dados' => null);
             }
