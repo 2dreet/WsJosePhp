@@ -18,11 +18,11 @@ class Produto extends CI_Controller {
             $where = "";
             if (isset($data['buscaAvancada'])) {
                 $buscaAvancada = $data['buscaAvancada'];
-                if (isset($buscaAvancada['descricao']) && $buscaAvancada['descricao'] != null && trim($buscaAvancada['descricao']) != "") {
-                    $where .= " AND descricao like '%" . $buscaAvancada['descricao'] . "%'";
+                if (isset($data['buscaDescricao']) && $data['buscaDescricao'] != null && trim($data['buscaDescricao']) != "") {
+                    $where .= " AND descricao like '%" . $data['buscaDescricao'] . "%'";
                 }
 
-                if (isset($buscaAvancada['fornecedor']) && $buscaAvancada['fornecedor'] != null && trim($buscaAvancada['descricao']) != "") {
+                if (isset($buscaAvancada['fornecedor']) && $buscaAvancada['fornecedor'] != null && $buscaAvancada['fornecedor'] != "") {
                     $where .= " AND id_fornecedor = " . $buscaAvancada['fornecedor']['id'];
                 }
 
