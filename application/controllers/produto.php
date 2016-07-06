@@ -18,8 +18,9 @@ class Produto extends CI_Controller {
             $where = "";
             if (isset($data['buscaAvancada'])) {
                 $buscaAvancada = $data['buscaAvancada'];
-                if (isset($data['buscaDescricao']) && $data['buscaDescricao'] != null && trim($data['buscaDescricao']) != "") {
-                    $where .= " AND descricao like '%" . $data['buscaDescricao'] . "%'";
+
+                if (isset($buscaAvancada['descricao']) && $buscaAvancada['descricao'] != null && trim($buscaAvancada['descricao']) != "") {
+                    $where .= " AND descricao like '%" . $buscaAvancada['descricao'] . "%'";
                 }
 
                 if (isset($buscaAvancada['fornecedor']) && $buscaAvancada['fornecedor'] != null && $buscaAvancada['fornecedor'] != "") {
@@ -30,6 +31,13 @@ class Produto extends CI_Controller {
                     $where .= " AND estoque > 0 ";
                 }
             }
+
+            if (isset($data['buscaAvancada'])) {
+                if (isset($data['buscaDescricao']) && $data['buscaDescricao'] != null && trim($data['buscaDescricao']) != "") {
+                    $where .= " AND descricao like '%" . $data['buscaDescricao'] . "%'";
+                }
+            }
+
             $listaProduto = null;
             $dadosToken = json_decode($jwtUtil->decode($token));
             if ($pagina > 0) {
