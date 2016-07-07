@@ -83,7 +83,9 @@ class Produto extends CI_Controller {
         $retorno = null;
         if ($token != null && $jwtUtil->validate($token)) {
             $retorno = array('token' => $token);
-            if ($dados != null) {
+            if ($dados != null && isset($data['data_inicial']) && isset($data['data_final']) && ( strlen($data['data_inicial']) >= 10 && strlen($data['data_final']) >= 10)) {
+                $dataInicial = substr($data['data_inicial'], 0, 10);
+                $dataFinal = substr($data['data_final'], 0, 10);
                 $listaMovimentacaoProduto = null;
                 $dadosToken = json_decode($jwtUtil->decode($token));
                 $this->load->database();
@@ -94,6 +96,8 @@ class Produto extends CI_Controller {
 
                 $query = $this->db->query("SELECT pm.id, pm.observacao, pm.quantidade, pm.data_movimento, tm.descricao, tm.id as tipo_movimentacao FROM produto_movimentacao pm inner join tipo_movimentacao tm on pm.tipo_movimentacao = tm.id"
                         . " where pm.ativo = true and pm.id_usuario = " . $dadosToken->id . " and pm.id_produto = " . $dados
+                        . "  AND DATE(data_movimento) >= '".$dataInicial."'"
+                        . "  AND DATE(data_movimento) <= '".$dataFinal."'"
                         . " ORDER BY data_movimento desc LIMIT " . $pagina . ", 10");
                 foreach ($query->result() as $row) {
                     $movimentacaoProduto = array('id' => $row->id, 'observacao' => $row->observacao, 'quantidade' => $row->quantidade,
@@ -103,12 +107,14 @@ class Produto extends CI_Controller {
 
                 $totalRegistro = 0;
                 $query = $this->db->query("SELECT count(*) as count FROM produto_movimentacao"
-                        . " where ativo = true and id_usuario = " . $dadosToken->id . " and id_produto = " . $dados);
+                        . " where ativo = true and id_usuario = " . $dadosToken->id . " and id_produto = " . $dados
+                        . "  AND DATE(data_movimento) >= '".$dataInicial."'"
+                        . "  AND DATE(data_movimento) <= '".$dataFinal."'");
                 foreach ($query->result() as $row) {
                     $totalRegistro = $row->count;
                 }
 
-                $retorno = array('token' => $token, 'dados' => $listaMovimentacaoProduto, 'totalRegistro' => $totalRegistro);
+                $retorno = array('token' => $token, 'dados' => $listaMovimentacaoProduto, 'totalRegistro' => $totalRegistro, 'estoque' => $this->getEstoqueProduto($dados, $dadosToken->id));
             } else {
                 $retorno = array('token' => $token, 'dados' => null);
             }
@@ -220,6 +226,20 @@ class Produto extends CI_Controller {
         echo json_encode($retorno);
     }
 
+    function getEstoqueProduto($codigoProduto, $codigoUsuario) {
+        $retorno = null;
+        if (isset($codigoProduto) && $codigoProduto != null && $codigoProduto > 0) {
+            $this->load->database();
+            $query = $this->db->query("SELECT * FROM produto where ativo = true and id_usuario = " . $codigoUsuario . " AND id =  " . $codigoProduto);
+            foreach ($query->result() as $row) {
+                $retorno = $row->estoque;
+            }
+        } else {
+            $retorno = null;
+        }
+        return $retorno;
+    }
+
     public function movimentarProduto() {
         $data = json_decode(file_get_contents('php://input'), true);
         $jwtUtil = new JwtUtil();
@@ -229,12 +249,9 @@ class Produto extends CI_Controller {
         if ($token != null && $jwtUtil->validate($token)) {
             $retorno = array('token' => $token);
             if ($dados != null) {
-
-                $dadosTeste = json_encode($dados);
-
                 $dadosToken = json_decode($jwtUtil->decode($token));
-
-                $estoque = $dados['estoque'];
+                $estoqueAtual = $this->getEstoqueProduto($dados['id'], $dadosToken->id);
+                $estoque = $estoqueAtual;
                 if ($dados['tipoMovimentacao'] == "1") {
                     $estoque = $estoque + $dados['estoque_movimento'];
                 } else if ($dados['tipoMovimentacao'] == "3") {
@@ -244,17 +261,22 @@ class Produto extends CI_Controller {
                 } else if ($dados['tipoMovimentacao'] == "5") {
                     $estoque = $dados['estoque_movimento'];
                 }
-                $produto = array('estoque' => $estoque);
 
-                $this->load->database();
-                $this->db->where('id', $dados['id']);
-                $this->db->where('id_usuario', $dadosToken->id);
-                $this->db->update('produto', $produto);
+                if ($estoque >= 0) {
+                    $produto = array('estoque' => $estoque);
 
-                $produtoMovimentacao = array('observacao' => $dados['estoque_movimento_observacao'], 'quantidade' => $dados['estoque_movimento'], 'data_movimento' => date("Y-m-d H:i:s"), 'id_produto' => $dados['id'], 'tipo_movimentacao' => $dados['tipoMovimentacao'], 'id_usuario' => $dadosToken->id, 'ativo' => '1');
-                $this->db->insert('produto_movimentacao', $produtoMovimentacao);
+                    $this->load->database();
+                    $this->db->where('id', $dados['id']);
+                    $this->db->where('id_usuario', $dadosToken->id);
+                    $this->db->update('produto', $produto);
 
-                $retorno = array('token' => $token, 'sucesso' => true);
+                    $produtoMovimentacao = array('observacao' => $dados['estoque_movimento_observacao'], 'quantidade' => $dados['estoque_movimento'], 'data_movimento' => date("Y-m-d H:i:s"), 'id_produto' => $dados['id'], 'tipo_movimentacao' => $dados['tipoMovimentacao'], 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+                    $this->db->insert('produto_movimentacao', $produtoMovimentacao);
+
+                    $retorno = array('token' => $token, 'sucesso' => true, 'estoque' => $estoque);
+                } else {
+                    $retorno = array('token' => $token, 'sucesso' => false, 'menssagem' => 'Estoque futuro negativo!', 'estoque' => $estoqueAtual);
+                }
             } else {
                 $retorno = array('token' => $token, 'sucesso' => false);
             }
