@@ -95,9 +95,12 @@ class Cliente extends CI_Controller {
         $retorno = null;
         if ($token != null && $jwtUtil->validate($token)) {
             $dadosToken = json_decode($jwtUtil->decode($token));
+            $dadosEndereco = $dados['endereco'];
+            $dadosTelefone = $dados['telefone'];
+            $dataNascimento = substr($dados['dataNascimento'], 0, 10);
 
             $this->load->database();
-            $pessoa = array('nome' => $dados['nome'], 'sobre_nome' => $dados['sobre_nome'], 'sexo' => $dados['sexo'], 'data_cadastro' => date("Y-m-d"), 'data_nascimento' => $dados['data_nascimento'], 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+            $pessoa = array('nome' => $dados['nome'], 'sobre_nome' => $dados['sobreNome'], 'sexo' => $dados['sexo'], 'data_cadastro' => date("Y-m-d"), 'data_nascimento' => $dataNascimento, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
             $this->db->insert('pessoa', $pessoa);
 
             $pessoa_id = 0;
@@ -105,17 +108,31 @@ class Cliente extends CI_Controller {
             foreach ($query->result() as $row) {
                 $pessoa_id = $row->id;
             }
-            
-            $cliente = array('cpf' => $dados['cpf'], 'rg' => $dados['rg'], 'email' => $dados['email'], 'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+
+            if (!isset($dados['rg'])) {
+                $dados['rg'] = "";
+            }
+
+            if (!isset($dados['cpf'])) {
+                $dados['cpf'] = "";
+            }
+
+            $cliente = array('cpf' => $dados['cpf'], 'rg' => $dados['rg'], 'email' => $dados['email'], 'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id);
             $this->db->insert('cliente', $cliente);
-            
-            $telefone = array('telefone' => $dados['telefone'], 'tipo_telefone' => $dados['tipo_telefone'], 'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
-            $this->db->insert('pessoa_telefone', $telefone);
-            
-            $endereco = array('rua' => $dados['rua'], 'complemento' => $dados['complemento'], 'bairro' => $dados['bairro'],
-                'cidade' => $dados['cidade'], 'estado' => $dados['estado'], 'cep' => $dados['cep'],
-                'id_usuario' => $dadosToken->id, 'ativo' => '1');
+
+            if (!isset($dadosEndereco['complemento'])) {
+                $dadosEndereco['complemento'] = "";
+            }
+
+            $endereco = array('rua' => $dadosEndereco['logradouro'], 'numero' => $dadosEndereco['numero'], 'complemento' => $dadosEndereco['complemento'],
+                'bairro' => $dadosEndereco['bairro'], 'cidade' => $dadosEndereco['cidade'], 'estado' => $dadosEndereco['uf'], 'cep' => $dadosEndereco['cep'],
+                'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
             $this->db->insert('pessoa_endereco', $endereco);
+
+            foreach ($dadosTelefone as $telefoneAux) {
+                $telefone = array('telefone' => $telefoneAux['numero'], 'tipo_telefone' => $telefoneAux['tipoTelefone']['id'], 'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+                $this->db->insert('pessoa_telefone', $telefone);
+            }
 
             $retorno = array('token' => $token);
         } else {
