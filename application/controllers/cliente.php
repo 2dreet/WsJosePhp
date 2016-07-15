@@ -41,22 +41,30 @@ class Cliente extends CI_Controller {
                     $where .= " AND descricao like '%" . $data['buscaDescricao'] . "%'";
                 }
             }
-            $listaFornecedor = null;
+            $listaCliente = null;
             $dadosToken = json_decode($jwtUtil->decode($token));
             $this->load->database();
-            $query = $this->db->query("SELECT * FROM fornecedor where ativo = true " . $where . " and id_usuario = " . $dadosToken->id . " LIMIT " . $pagina . "," . $limit);
+            $query = $this->db->query("SELECT c.id as idC, c.cpf, c.rg, c.email, p.id as idP, p.nome, p.sobre_nome, p.sexo, p.data_nascimento, pe.id as idPe, pe.rua, pe.numero, pe.complemento, pe.bairro, pe.cidade, pe.estado, pe.cep "
+                    . " FROM cliente c INNER JOIN pessoa p ON c.id_pessoa = p.id AND c.id_usuario = p.id_usuario INNER JOIN pessoa_endereco pe ON pe.id_pessoa = p.id AND pe.id_usuario = p.id_usuario "
+                    . " where p.ativo = true " . $where . " and c.id_usuario = " . $dadosToken->id . " LIMIT " . $pagina . "," . $limit);
+
             foreach ($query->result() as $row) {
-                $fornecedor = array('id' => $row->id, 'descricao' => $row->descricao, 'email' => $row->email, 'telefone' => $row->telefone);
-                $listaFornecedor[] = $fornecedor;
+                $pessoa = array('id' => $row->idP, 'nome' => $row->nome, 'sobreNome' => $row->sobre_nome, 'sexo' => $row->sexo, 'dataNascimento' => $row->data_nascimento);
+                $endereco = array('id' => $row->idPe, 'logradouro' => $row->rua, 'numero' => $row->numero, 'complemento' => $row->complemento, 'bairro' => $row->bairro
+                    , 'cidade' => $row->cidade, 'estado' => $row->estado, 'cep' => $row->cep);
+                $cliente = array('id' => $row->idC, 'cpf' => $row->cpf, 'rg' => $row->rg, 'email' => $row->email, 'endereco' => $endereco, 'pessoa' => $pessoa);
+
+                $listaCliente[] = $cliente;
             }
 
             $totalRegistro = 0;
-            $query = $this->db->query("SELECT count(*) as count FROM fornecedor where ativo = true " . $where . " and id_usuario = " . $dadosToken->id);
+            $query = $this->db->query("SELECT count(*) count FROM cliente c INNER JOIN pessoa p ON c.id_pessoa = p.id AND c.id_usuario = p.id_usuario INNER JOIN pessoa_endereco pe ON pe.id_pessoa = p.id AND pe.id_usuario = p.id_usuario "
+                    . "  where p.ativo = true " . $where . " and c.id_usuario = " . $dadosToken->id);
             foreach ($query->result() as $row) {
                 $totalRegistro = $row->count;
             }
 
-            $retorno = array('token' => $token, 'dados' => $listaFornecedor, 'totalRegistro' => $totalRegistro);
+            $retorno = array('token' => $token, 'dados' => $listaCliente, 'totalRegistro' => $totalRegistro);
         } else {
             $retorno = array('token' => false);
         }
@@ -104,7 +112,7 @@ class Cliente extends CI_Controller {
             $this->db->insert('pessoa', $pessoa);
 
             $pessoa_id = 0;
-            $query = $this->db->query("SELECT LAST_INSERT_ID() as id FROM produto WHERE ativo = true AND id_usuario = " . $dadosToken->id . " LIMIT 1");
+            $query = $this->db->query("SELECT LAST_INSERT_ID() as id FROM pessoa WHERE ativo = true AND id_usuario = " . $dadosToken->id . " LIMIT 1");
             foreach ($query->result() as $row) {
                 $pessoa_id = $row->id;
             }
