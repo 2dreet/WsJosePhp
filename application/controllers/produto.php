@@ -48,15 +48,14 @@ class Produto extends CI_Controller {
             foreach ($query->result() as $row) {
                 $queryFornecedor = $this->db->query("SELECT * FROM fornecedor where ativo = true and id = " . $row->id_fornecedor);
                 $fornecedor = null;
-
-
-
                 foreach ($queryFornecedor->result() as $rowFornecedor) {
                     $fornecedor = array('id' => $rowFornecedor->id, 'descricao' => $rowFornecedor->descricao, 'email' => $rowFornecedor->email, 'telefone' => $rowFornecedor->telefone);
                 }
 
                 $produto = array('id' => $row->id, 'descricao' => $row->descricao, 'valor' => $row->valor, 'observacao' => $row->observacao, 'estoque' => $row->estoque, 'fornecedor' => $fornecedor);
                 $listaProduto[] = ($produto);
+                unset($produto);
+                unset($fornecedor);
             }
 
             $totalRegistro = 0;
@@ -103,6 +102,7 @@ class Produto extends CI_Controller {
                     $movimentacaoProduto = array('id' => $row->id, 'observacao' => $row->observacao, 'quantidade' => $row->quantidade,
                         'data_movimento' => str_replace(" ", "T", $row->data_movimento), 'descricao' => $row->descricao, 'tipoMovimentacao' => $row->tipo_movimentacao);
                     $listaMovimentacaoProduto[] = ($movimentacaoProduto);
+                    unset($movimentacaoProduto);
                 }
 
                 $totalRegistro = 0;

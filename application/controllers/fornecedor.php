@@ -48,6 +48,7 @@ class Fornecedor extends CI_Controller {
             foreach ($query->result() as $row) {
                 $fornecedor = array('id' => $row->id, 'descricao' => $row->descricao, 'email' => $row->email, 'telefone' => $row->telefone);
                 $listaFornecedor[] = $fornecedor;
+                unset($fornecedor);
             }
 
             $totalRegistro = 0;

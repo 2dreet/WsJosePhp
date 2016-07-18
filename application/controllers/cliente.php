@@ -49,12 +49,27 @@ class Cliente extends CI_Controller {
                     . " where p.ativo = true " . $where . " and c.id_usuario = " . $dadosToken->id . " LIMIT " . $pagina . "," . $limit);
 
             foreach ($query->result() as $row) {
+                $listaTelefone = null;
+                $queryTelefone = $this->db->query("SELECT pe.id, pe.telefone, pe.tipo_telefone, tt.descricao "
+                        . " FROM pessoa_telefone pe INNER JOIN tipo_telefone tt ON pe.tipo_telefone = tt.id "
+                        . " where pe.ativo = true and pe.id_usuario = " . $dadosToken->id . " AND pe.id_pessoa = " . $row->idP);
+                foreach ($queryTelefone->result() as $rowTelefone) {
+                    $telefoneAux = array('id' => $rowTelefone->id, 'numero' => $rowTelefone->telefone,
+                        'tipoTelefone' => array('id' => $rowTelefone->tipo_telefone, 'descricao' => $rowTelefone->descricao));
+                    $listaTelefone[] = $telefoneAux;
+                    unset($telefoneAux);
+                }
+
                 $pessoa = array('id' => $row->idP, 'nome' => $row->nome, 'sobreNome' => $row->sobre_nome, 'sexo' => $row->sexo, 'dataNascimento' => $row->data_nascimento);
                 $endereco = array('id' => $row->idPe, 'logradouro' => $row->rua, 'numero' => $row->numero, 'complemento' => $row->complemento, 'bairro' => $row->bairro
-                    , 'cidade' => $row->cidade, 'estado' => $row->estado, 'cep' => $row->cep);
-                $cliente = array('id' => $row->idC, 'cpf' => $row->cpf, 'rg' => $row->rg, 'email' => $row->email, 'endereco' => $endereco, 'pessoa' => $pessoa);
+                    , 'cidade' => $row->cidade, 'uf' => $row->estado, 'cep' => $row->cep);
+                $cliente = array('id' => $row->idC, 'cpf' => $row->cpf, 'rg' => $row->rg, 'email' => $row->email, 'endereco' => $endereco, 'pessoa' => $pessoa, 'listaTelefone' => $listaTelefone);
 
                 $listaCliente[] = $cliente;
+                unset($pessoa);
+                unset($endereco);
+                unset($cliente);
+                unset($listaTelefone);
             }
 
             $totalRegistro = 0;
