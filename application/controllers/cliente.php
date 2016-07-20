@@ -119,7 +119,7 @@ class Cliente extends CI_Controller {
         if ($token != null && $jwtUtil->validate($token)) {
             $dadosToken = json_decode($jwtUtil->decode($token));
             $dadosEndereco = $dados['endereco'];
-            $dadosTelefone = $dados['telefone'];
+            $dadosTelefone = $dados['listaTelefone'];
             $dataNascimento = substr($dados['dataNascimento'], 0, 10);
 
             $this->load->database();
