@@ -88,19 +88,82 @@ class Cliente extends CI_Controller {
         echo json_encode($retorno);
     }
 
-    public function updateFornecedor() {
+    public function updateCliente() {
         $data = json_decode(file_get_contents('php://input'), true);
         $jwtUtil = new JwtUtil();
         $token = $data['token'];
         $dados = $data['dados'];
         $retorno = null;
         if ($token != null && $jwtUtil->validate($token)) {
-            $fornecedor = array('descricao' => $dados['descricao'], 'email' => $dados['email'], 'telefone' => $dados['telefone']);
             $dadosToken = json_decode($jwtUtil->decode($token));
+            $dadosEndereco = $dados['endereco'];
+            $dadosTelefone = $dados['listaTelefone'];
+            $dadosTelefoneRemovido = null;
+            if (isset($dados['listaTelefoneRemovido'])) {
+                $dadosTelefoneRemovido = $dados['listaTelefoneRemovido'];
+            }
+            $dataNascimento = substr($dados['pessoa']['dataNascimento'], 0, 10);
+
             $this->load->database();
-            $this->db->where('id', $dados['id']);
+            $pessoa = array('nome' => $dados['pessoa']['nome'], 'sobre_nome' => $dados['pessoa']['sobreNome'], 'sexo' => $dados['pessoa']['sexo'], 'data_cadastro' => date("Y-m-d"), 'data_nascimento' => $dataNascimento, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+            $this->db->where('id', $dados['pessoa']['id']);
             $this->db->where('id_usuario', $dadosToken->id);
-            $this->db->update('fornecedor', $fornecedor);
+            $this->db->update('pessoa', $pessoa);
+
+            $pessoa_id = $dados['pessoa']['id'];
+
+            if (!isset($dados['rg'])) {
+                $dados['rg'] = "";
+            }
+
+            if (!isset($dados['cpf'])) {
+                $dados['cpf'] = "";
+            }
+
+            $cliente = array('cpf' => $dados['cpf'], 'rg' => $dados['rg'], 'email' => $dados['email']);
+
+            $this->db->where('id', $dados['id']);
+            $this->db->where('id_pessoa', $pessoa_id);
+            $this->db->where('id_usuario', $dadosToken->id);
+            $this->db->update('cliente', $cliente);
+
+            if (!isset($dadosEndereco['complemento'])) {
+                $dadosEndereco['complemento'] = "";
+            }
+
+            $endereco = array('rua' => $dadosEndereco['logradouro'], 'numero' => $dadosEndereco['numero'], 'complemento' => $dadosEndereco['complemento'],
+                'bairro' => $dadosEndereco['bairro'], 'cidade' => $dadosEndereco['cidade'], 'estado' => $dadosEndereco['uf'], 'cep' => $dadosEndereco['cep']);
+            $this->db->where('id', $dadosEndereco['id']);
+            $this->db->where('id_pessoa', $pessoa_id);
+            $this->db->where('id_usuario', $dadosToken->id);
+            $this->db->update('pessoa_endereco', $endereco);
+
+
+            foreach ($dadosTelefone as $telefoneAux) {
+                if (!isset($telefoneAux['id'])) {
+                    $telefone = array('telefone' => $telefoneAux['numero'], 'tipo_telefone' => $telefoneAux['tipoTelefone']['id'], 'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+                    $this->db->insert('pessoa_telefone', $telefone);
+                } else {
+                    $telefone = array('telefone' => $telefoneAux['numero'], 'tipo_telefone' => $telefoneAux['tipoTelefone']['id']);
+                    $this->db->where('id', $telefoneAux['id']);
+                    $this->db->where('id_pessoa', $pessoa_id);
+                    $this->db->where('id_usuario', $dadosToken->id);
+                    $this->db->update('pessoa_telefone', $telefone);
+                }
+                unset($telefone);
+            }
+
+            if ($dadosTelefoneRemovido != null) {
+                foreach ($dadosTelefoneRemovido as $telefoneAux) {
+                     $telefone = array('ativo' => '0');
+                    $this->db->where('id', $telefoneAux['id']);
+                    $this->db->where('id_pessoa', $pessoa_id);
+                    $this->db->where('id_usuario', $dadosToken->id);
+                    $this->db->update('pessoa_telefone', $telefone);
+                    unset($telefone);
+                }
+            }
+
             $retorno = array('token' => $token);
         } else {
             $retorno = array('token' => false);
@@ -120,10 +183,10 @@ class Cliente extends CI_Controller {
             $dadosToken = json_decode($jwtUtil->decode($token));
             $dadosEndereco = $dados['endereco'];
             $dadosTelefone = $dados['listaTelefone'];
-            $dataNascimento = substr($dados['dataNascimento'], 0, 10);
+            $dataNascimento = substr($dados['pessoa']['dataNascimento'], 0, 10);
 
             $this->load->database();
-            $pessoa = array('nome' => $dados['nome'], 'sobre_nome' => $dados['sobreNome'], 'sexo' => $dados['sexo'], 'data_cadastro' => date("Y-m-d"), 'data_nascimento' => $dataNascimento, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+            $pessoa = array('nome' => $dados['pessoa']['nome'], 'sobre_nome' => $dados['pessoa']['sobreNome'], 'sexo' => $dados['pessoa']['sexo'], 'data_cadastro' => date("Y-m-d"), 'data_nascimento' => $dataNascimento, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
             $this->db->insert('pessoa', $pessoa);
 
             $pessoa_id = 0;
@@ -155,6 +218,7 @@ class Cliente extends CI_Controller {
             foreach ($dadosTelefone as $telefoneAux) {
                 $telefone = array('telefone' => $telefoneAux['numero'], 'tipo_telefone' => $telefoneAux['tipoTelefone']['id'], 'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
                 $this->db->insert('pessoa_telefone', $telefone);
+                unset($telefone);
             }
 
             $retorno = array('token' => $token);
