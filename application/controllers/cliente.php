@@ -230,19 +230,19 @@ class Cliente extends CI_Controller {
         echo json_encode($retorno);
     }
 
-    public function deleteFornecedor() {
+     public function deleteCliente() {
         $data = json_decode(file_get_contents('php://input'), true);
         $jwtUtil = new JwtUtil();
         $token = $data['token'];
         $dados = $data['dados'];
         $retorno = null;
         if ($token != null && $jwtUtil->validate($token)) {
-            $fornecedor = array('ativo' => '0');
             $dadosToken = json_decode($jwtUtil->decode($token));
             $this->load->database();
+            $pessoa = array('ativo' => '0');
             $this->db->where('id', $dados['id']);
             $this->db->where('id_usuario', $dadosToken->id);
-            $this->db->update('fornecedor', $fornecedor);
+            $this->db->update('pessoa', $pessoa);
             $retorno = array('token' => $token);
         } else {
             $retorno = array('token' => false);
