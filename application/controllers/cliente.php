@@ -24,21 +24,51 @@ class Cliente extends CI_Controller {
                 $buscaAvancada = $data['buscaAvancada'];
 
                 if (isset($buscaAvancada['descricao']) && $buscaAvancada['descricao'] != null && trim($buscaAvancada['descricao']) != "") {
-                    $where .= " AND descricao like '%" . $buscaAvancada['descricao'] . "%'";
+                    $where .= " AND (p.nome like '%" . $buscaAvancada['descricao'] . "%'";
+                    $where .= " OR p.sobre_nome like '%" . $buscaAvancada['descricao'] . "%')";
                 }
-
+                
+                if (isset($buscaAvancada['sexo']) && $buscaAvancada['sexo'] != null && trim($buscaAvancada['sexo']) != "" && trim($buscaAvancada['sexo']) != "Todos") {
+                    $where .= " AND p.sexo = '" . $buscaAvancada['sexo'] . "'";
+                }
+                
+                if (isset($buscaAvancada['rg']) && $buscaAvancada['rg'] != null && trim($buscaAvancada['rg']) != "") {
+                    $where .= " AND c.rg = '" . $buscaAvancada['rg'] . "'";
+                }
+                
+                if (isset($buscaAvancada['cpf']) && $buscaAvancada['cpf'] != null && trim($buscaAvancada['cpf']) != "") {
+                    $where .= " AND c.cpf = '" . $buscaAvancada['cpf'] . "'";
+                }
+                
                 if (isset($buscaAvancada['email']) && $buscaAvancada['email'] != null && trim($buscaAvancada['email']) != "") {
-                    $where .= " AND email like '%" . $buscaAvancada['email'] . "%'";
+                    $where .= " AND c.email = '" . $buscaAvancada['email'] . "'";
+                }
+                
+                if (isset($buscaAvancada['cep']) && $buscaAvancada['cep'] != null && trim($buscaAvancada['cep']) != "") {
+                    $where .= " AND pe.cep = '" . $buscaAvancada['cep'] . "'";
+                }
+                
+                if (isset($buscaAvancada['logradouro']) && $buscaAvancada['logradouro'] != null && trim($buscaAvancada['logradouro']) != "") {
+                    $where .= " AND pe.rua like '%" . $buscaAvancada['logradouro'] . "%'";
+                }
+                
+                if (isset($buscaAvancada['bairro']) && $buscaAvancada['bairro'] != null && trim($buscaAvancada['bairro']) != "") {
+                    $where .= " AND pe.bairro like '%" . $buscaAvancada['bairro'] . "%'";
                 }
 
-                if (isset($buscaAvancada['telefone']) && $buscaAvancada['telefone'] != null && trim($buscaAvancada['telefone']) != "") {
-                    $where .= " AND telefone like '%" . $buscaAvancada['telefone'] . "%'";
+                if (isset($buscaAvancada['cidade']) && $buscaAvancada['cidade'] != null && trim($buscaAvancada['cidade']) != "") {
+                    $where .= " AND pe.cidade like '%" . $buscaAvancada['cidade'] . "%'";
+                }
+
+                if (isset($buscaAvancada['uf']) && $buscaAvancada['uf'] != null && trim($buscaAvancada['uf']) != "") {
+                    $where .= " AND pe.estado = '" . $buscaAvancada['uf'] . "'";
                 }
             }
 
             if (isset($data['buscaDescricao'])) {
                 if (isset($data['buscaDescricao']) && $data['buscaDescricao'] != null && trim($data['buscaDescricao']) != "") {
-                    $where .= " AND descricao like '%" . $data['buscaDescricao'] . "%'";
+                    $where .= " AND (p.nome like '%" . $data['buscaDescricao'] . "%'";
+                    $where .= " OR p.sobre_nome like '%" . $data['buscaDescricao'] . "%')";
                 }
             }
             $listaCliente = null;
