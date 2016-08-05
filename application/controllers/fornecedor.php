@@ -35,7 +35,7 @@ class Fornecedor extends CI_Controller {
                     $where .= " AND telefone like '%" . $buscaAvancada['telefone'] . "%'";
                 }
             }
-            
+
             if (isset($data['buscaDescricao'])) {
                 if (isset($data['buscaDescricao']) && $data['buscaDescricao'] != null && trim($data['buscaDescricao']) != "") {
                     $where .= " AND descricao like '%" . $data['buscaDescricao'] . "%'";
@@ -66,20 +66,19 @@ class Fornecedor extends CI_Controller {
         echo json_encode($retorno);
     }
 
-    public function updateFornecedor() {
+    public function enviarFornecedor() {
         $data = json_decode(file_get_contents('php://input'), true);
         $jwtUtil = new JwtUtil();
         $token = $data['token'];
-        $dados = $data['dados'];
         $retorno = null;
         if ($token != null && $jwtUtil->validate($token)) {
-            $fornecedor = array('descricao' => $dados['descricao'], 'email' => $dados['email'], 'telefone' => $dados['telefone']);
-            $dadosToken = json_decode($jwtUtil->decode($token));
-            $this->load->database();
-            $this->db->where('id', $dados['id']);
-            $this->db->where('id_usuario', $dadosToken->id);
-            $this->db->update('fornecedor', $fornecedor);
-            $retorno = array('token' => $token);
+            if ($data['tipoFuncao'] == 'inserir') {
+                $retorno = $this->inserirFornecedor($data['dados'], $token);
+            } else if ($data['tipoFuncao'] == 'alterar') {
+                $retorno = $this->alterarFornecedor($data['dados'], $token);
+            } else if ($data['tipoFuncao'] == 'deletar') {
+                $retorno = $this->deletarFornecedor($data['dados'], $token);
+            }
         } else {
             $retorno = array('token' => false);
         }
@@ -88,46 +87,38 @@ class Fornecedor extends CI_Controller {
         echo json_encode($retorno);
     }
 
-    public function insertFornecedor() {
-        $data = json_decode(file_get_contents('php://input'), true);
+    function deletarFornecedor($dados, $token) {
         $jwtUtil = new JwtUtil();
-        $token = $data['token'];
-        $dados = $data['dados'];
-        $retorno = null;
-        if ($token != null && $jwtUtil->validate($token)) {
-            $dadosToken = json_decode($jwtUtil->decode($token));
-            $fornecedor = array('descricao' => $dados['descricao'], 'email' => $dados['email'], 'telefone' => $dados['telefone'], 'id_usuario' => $dadosToken->id, 'ativo' => '1');
-            $this->load->database();
-            $this->db->insert('fornecedor', $fornecedor);
-            $retorno = array('token' => $token);
-        } else {
-            $retorno = array('token' => false);
-        }
-
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode($retorno);
+        $fornecedor = array('ativo' => '0');
+        $dadosToken = json_decode($jwtUtil->decode($token));
+        $this->load->database();
+        $this->db->where('id', $dados['id']);
+        $this->db->where('id_usuario', $dadosToken->id);
+        $this->db->update('fornecedor', $fornecedor);
+        $retorno = array('token' => $token, 'msgRetorno' => 'Deletado com sucesso!');
+        return ($retorno);
     }
 
-    public function deleteFornecedor() {
-        $data = json_decode(file_get_contents('php://input'), true);
+    function inserirFornecedor($dados, $token) {
         $jwtUtil = new JwtUtil();
-        $token = $data['token'];
-        $dados = $data['dados'];
-        $retorno = null;
-        if ($token != null && $jwtUtil->validate($token)) {
-            $fornecedor = array('ativo' => '0');
-            $dadosToken = json_decode($jwtUtil->decode($token));
-            $this->load->database();
-            $this->db->where('id', $dados['id']);
-            $this->db->where('id_usuario', $dadosToken->id);
-            $this->db->update('fornecedor', $fornecedor);
-            $retorno = array('token' => $token);
-        } else {
-            $retorno = array('token' => false);
-        }
+        $dadosToken = json_decode($jwtUtil->decode($token));
+        $fornecedor = array('descricao' => $dados['descricao'], 'email' => $dados['email'], 'telefone' => $dados['telefone'], 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+        $this->load->database();
+        $this->db->insert('fornecedor', $fornecedor);
+        $retorno = array('token' => $token, 'msgRetorno' => 'Cadastrado com sucesso!');
+        return ($retorno);
+    }
 
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode($retorno);
+    function alterarFornecedor($dados, $token) {
+        $jwtUtil = new JwtUtil();
+        $fornecedor = array('descricao' => $dados['descricao'], 'email' => $dados['email'], 'telefone' => $dados['telefone']);
+        $dadosToken = json_decode($jwtUtil->decode($token));
+        $this->load->database();
+        $this->db->where('id', $dados['id']);
+        $this->db->where('id_usuario', $dadosToken->id);
+        $this->db->update('fornecedor', $fornecedor);
+        $retorno = array('token' => $token, 'msgRetorno' => 'Alterado com sucesso!');
+        return ($retorno);
     }
 
 }
