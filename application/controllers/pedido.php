@@ -20,44 +20,95 @@ class Pedido extends CI_Controller {
                 $pagina = $pagina * $limit;
             }
             $where = "";
-            if (isset($data['buscaAvancada'])) {
-                $buscaAvancada = $data['buscaAvancada'];
-
-                if (isset($buscaAvancada['descricao']) && $buscaAvancada['descricao'] != null && trim($buscaAvancada['descricao']) != "") {
-                    $where .= " AND descricao like '%" . $buscaAvancada['descricao'] . "%'";
-                }
-
-                if (isset($buscaAvancada['email']) && $buscaAvancada['email'] != null && trim($buscaAvancada['email']) != "") {
-                    $where .= " AND email like '%" . $buscaAvancada['email'] . "%'";
-                }
-
-                if (isset($buscaAvancada['telefone']) && $buscaAvancada['telefone'] != null && trim($buscaAvancada['telefone']) != "") {
-                    $where .= " AND telefone like '%" . $buscaAvancada['telefone'] . "%'";
-                }
-            }
-
-            if (isset($data['buscaDescricao'])) {
-                if (isset($data['buscaDescricao']) && $data['buscaDescricao'] != null && trim($data['buscaDescricao']) != "") {
-                    $where .= " AND descricao like '%" . $data['buscaDescricao'] . "%'";
-                }
-            }
-            $listaFornecedor = null;
+//            if (isset($data['buscaAvancada'])) {
+//                $buscaAvancada = $data['buscaAvancada'];
+//
+//                if (isset($buscaAvancada['descricao']) && $buscaAvancada['descricao'] != null && trim($buscaAvancada['descricao']) != "") {
+//                    $where .= " AND descricao like '%" . $buscaAvancada['descricao'] . "%'";
+//                }
+//
+//                if (isset($buscaAvancada['email']) && $buscaAvancada['email'] != null && trim($buscaAvancada['email']) != "") {
+//                    $where .= " AND email like '%" . $buscaAvancada['email'] . "%'";
+//                }
+//
+//                if (isset($buscaAvancada['telefone']) && $buscaAvancada['telefone'] != null && trim($buscaAvancada['telefone']) != "") {
+//                    $where .= " AND telefone like '%" . $buscaAvancada['telefone'] . "%'";
+//                }
+//            }
+//
+//            if (isset($data['buscaDescricao'])) {
+//                if (isset($data['buscaDescricao']) && $data['buscaDescricao'] != null && trim($data['buscaDescricao']) != "") {
+//                    $where .= " AND descricao like '%" . $data['buscaDescricao'] . "%'";
+//                }
+//            }
+            $listaPedido = null;
             $dadosToken = json_decode($jwtUtil->decode($token));
             $this->load->database();
-            $query = $this->db->query("SELECT * FROM fornecedor where ativo = true " . $where . " and id_usuario = " . $dadosToken->id . " LIMIT " . $pagina . "," . $limit);
+            $query = $this->db->query("SELECT * FROM pedido where ativo = true " . $where . " and id_usuario = " . $dadosToken->id . " LIMIT " . $pagina . "," . $limit);
             foreach ($query->result() as $row) {
-                $fornecedor = array('id' => $row->id, 'descricao' => $row->descricao, 'email' => $row->email, 'telefone' => $row->telefone);
-                $listaFornecedor[] = $fornecedor;
-                unset($fornecedor);
+                $formaPagamento = null;
+                $queryFormaPagamento = $this->db->query("SELECT * FROM forma_pagamento where ativo = true and id = " . $row->forma_pagamento);
+                foreach ($queryFormaPagamento->result() as $rowFormaPagamento) {
+                    $formaPagamento = array('id' => $rowFormaPagamento->id, 'descricao' => $rowFormaPagamento->descricao, 'ativo' => $rowFormaPagamento->ativo);
+                }
+
+                $status = null;
+                $queryStatus = $this->db->query("SELECT * FROM status_pedido where ativo = true and id = " . $row->forma_pagamento);
+                foreach ($queryStatus->result() as $rowStatus) {
+                    $status = array('id' => $rowStatus->id, 'descricao' => $rowStatus->descricao, 'ativo' => $rowStatus->ativo);
+                }
+
+                $tipo = null;
+                $queryTipo = $this->db->query("SELECT * FROM tipo_pedido where ativo = true and id = " . $row->forma_pagamento);
+                foreach ($queryTipo->result() as $rowTipo) {
+                    $tipo = array('id' => $rowTipo->id, 'descricao' => $rowTipo->descricao, 'ativo' => $rowTipo->ativo);
+                }
+
+                $cliente = null;
+                $queryCliente = $this->db->query("SELECT c.id as idC, c.cpf, c.rg, c.email, p.id as idP, p.nome, p.sobre_nome, p.sexo, p.data_nascimento "
+                        . " FROM cliente c INNER JOIN pessoa p ON c.id_pessoa = p.id AND c.id_usuario = p.id_usuario"
+                        . " where p.ativo = true AND c.id = " . $row->id_cliente . " and c.id_usuario = " . $dadosToken->id);
+
+                foreach ($queryCliente->result() as $rowCliente) {
+                    $pessoa = array('id' => $rowCliente->idP, 'nome' => $rowCliente->nome, 'sobreNome' => $rowCliente->sobre_nome, 'sexo' => $rowCliente->sexo, 'dataNascimento' => $rowCliente->data_nascimento);
+                    $cliente = array('id' => $rowCliente->idC, 'cpf' => $rowCliente->cpf, 'rg' => $rowCliente->rg, 'email' => $rowCliente->email, 'pessoa' => $pessoa);
+                }
+
+                $listaItem = null;
+                $valor = 0;
+                $queryListaItem = $this->db->query("SELECT * FROM pedido_produto where ativo = true and pedido = " . $row->id . " and id_usuario = " . $dadosToken->id);
+                foreach ($queryListaItem->result() as $rowPedidoItem) {
+                    $item = null;
+                    $queryListaProduto = $this->db->query("SELECT * FROM produto where ativo = true and id = " . $rowPedidoItem->produto . " and id_usuario = " . $dadosToken->id);
+                    foreach ($queryListaProduto->result() as $rowProduto) {
+                        $pedidoItem = array('id_produto_item' => $rowPedidoItem->id, 'quantidadeCompra' => $rowPedidoItem->quantidade, 'valor_pedido_item' => $rowPedidoItem->valor, 'produto' => $item,
+                            'ativo' => $rowPedidoItem->ativo, 'id' => $rowProduto->id, 'descricao' => $rowProduto->descricao, 'valor' => $rowProduto->valor);
+                    }
+                    $valor = $valor + $rowPedidoItem->valor;
+                    $listaItem[] = $pedidoItem;
+                }
+
+                $dataVencimento = substr($row->data_vencimento, 0, 10);
+                $pedido = array('id' => $row->id, 'descricao' => $row->descricao, 'desconto' => $row->desconto, 'data_lancamento' => $row->data_lancamento
+                    , 'data_entrega' => $row->data_entrega, 'data_vencimento' => $dataVencimento, 'formaPagamento' => $formaPagamento, 'cliente' => $cliente,
+                    'tipoPedido' => $tipo, 'status' => $status, 'listaProduto' => $listaItem, 'valor' => $valor);
+                $listaPedido[] = $pedido;
+
+                unset($pedido);
+                unset($cliente);
+                unset($pessoa);
+                unset($tipo);
+                unset($status);
+                unset($formaPagamento);
             }
 
             $totalRegistro = 0;
-            $query = $this->db->query("SELECT count(*) as count FROM fornecedor where ativo = true " . $where . " and id_usuario = " . $dadosToken->id);
+            $query = $this->db->query("SELECT count(*) as count FROM pedido where ativo = true " . $where . " and id_usuario = " . $dadosToken->id);
             foreach ($query->result() as $row) {
                 $totalRegistro = $row->count;
             }
 
-            $retorno = array('token' => $token, 'dados' => $listaFornecedor, 'totalRegistro' => $totalRegistro);
+            $retorno = array('token' => $token, 'dados' => $listaPedido, 'totalRegistro' => $totalRegistro);
         } else {
             $retorno = array('token' => false);
         }
