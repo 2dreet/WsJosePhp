@@ -45,15 +45,15 @@ class Pedido extends CI_Controller {
             $dadosToken = json_decode($jwtUtil->decode($token));
             $this->load->database();
             $query = $this->db->query("SELECT p.* , concat(ps.nome, ' ', ps.sobre_nome) as nome FROM pedido p " .
-            "inner join cliente c on p.id_cliente = c.id and p.id_usuario = c.id_usuario ".
-            "inner join pessoa ps on ps.id = c.id_pessoa and ps.id_usuario = c.id_usuario ".
-            "inner join tipo_pedido tp on tp.id = p.tipo_pedido ".
-            "inner join status_pedido sp on sp.id = p.status ".
-            " where p.ativo = true " . $where . " and p.id_usuario = " . $dadosToken->id . " LIMIT " . $pagina . "," . $limit);
+                    "inner join cliente c on p.id_cliente = c.id and p.id_usuario = c.id_usuario " .
+                    "inner join pessoa ps on ps.id = c.id_pessoa and ps.id_usuario = c.id_usuario " .
+                    "inner join tipo_pedido tp on tp.id = p.tipo_pedido " .
+                    "inner join status_pedido sp on sp.id = p.status " .
+                    " where p.ativo = true " . $where . " and p.id_usuario = " . $dadosToken->id . " LIMIT " . $pagina . "," . $limit);
             foreach ($query->result() as $row) {
                 $dataVencimento = substr($row->data_vencimento, 0, 10);
                 $pedido = array('id' => $row->id, 'descricao' => $row->descricao, 'valor' => $row->valor, 'desconto' => $row->desconto
-                    , 'dataVencimento' => $dataVencimento, 'cliente' => $row->nome, 'tipoPedido' => $row->tipo_pedido, 'status' => $row->status);
+                    , 'dataVencimento' => $dataVencimento, 'cliente' => $row->nome, 'tipo_pedido' => $row->tipo_pedido, 'status' => $row->status);
                 $listaPedido[] = $pedido;
                 unset($pedido);
             }
@@ -65,6 +65,35 @@ class Pedido extends CI_Controller {
             }
 
             $retorno = array('token' => $token, 'dados' => $listaPedido, 'totalRegistro' => $totalRegistro);
+        } else {
+            $retorno = array('token' => false);
+        }
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($retorno);
+    }
+
+    public function getPedido() {
+        $data = json_decode(file_get_contents('php://input'), true);
+        $jwtUtil = new JwtUtil();
+        $token = $data['token'];
+        $id = $data['idPedido'];
+        $retorno = null;
+        if (isset($token) && $token != null && $jwtUtil->validate($token) && isset($id) && $id > 0) {
+            $this->load->library('clienteLbl');
+            $dadosToken = json_decode($jwtUtil->decode($token));
+            $this->load->database();
+            $query = $this->db->query("SELECT * FROM pedido " .
+                    " where ativo = true and id = " . $id . " and id_usuario = " . $dadosToken->id);
+            $pedido = null;
+            foreach ($query->result() as $row) {
+                $dataVencimento = substr($row->data_vencimento, 0, 10);
+                $cliente = $this->clienteLbl->getCliente($id, $dadosToken->id);
+                $pedido = array('id' => $row->id, 'descricao' => $row->descricao, 'valor' => $row->valor, 'desconto' => $row->desconto
+                    , 'data_vencimento' => $dataVencimento, 'tipo_pedido' => $row->tipo_pedido, 'status' => $row->status, 'forma_pagamento' => $row->forma_pagamento,
+                    'cliente' => $cliente);
+            }
+            $retorno = array('token' => $token, 'pedido' => $pedido);
         } else {
             $retorno = array('token' => false);
         }
@@ -109,16 +138,16 @@ class Pedido extends CI_Controller {
     function inserir($dados, $token) {
         $jwtUtil = new JwtUtil();
         $dadosToken = json_decode($jwtUtil->decode($token));
-        $dataVencimento = substr($dados['dataVencimento'], 0, 10);
+        $dataVencimento = substr($dados['data_vencimento'], 0, 10);
         if (!isset($dados['desconto'])) {
             $dados['desconto'] = 0;
         }
         $status = 1;
-        if (isset($dados['pedidoPago']) && $dados['pedidoPago']) {
+        if (isset($dados['pedido_pago']) && $dados['pedido_pago']) {
             $status = 2;
         }
-        $pedido = array('descricao' => $dados['descricao'], 'desconto' => $dados['desconto'], 'valor' => $dados['valorPedido'], 'data_vencimento' => $dataVencimento,
-            'forma_pagamento' => $dados['formaPagamento']['id'], 'tipo_pedido' => $dados['tipoPedido']['id'],
+        $pedido = array('descricao' => $dados['descricao'], 'desconto' => $dados['desconto'], 'valor' => $dados['valor'], 'data_vencimento' => $dataVencimento,
+            'forma_pagamento' => $dados['forma_pagamento']['id'], 'tipo_pedido' => $dados['tipo_pedido']['id'],
             'id_cliente' => $dados['cliente']['id'], 'status' => $status, 'data_lancamento' => date("Y-m-d"), 'id_usuario' => $dadosToken->id, 'ativo' => '1');
         $this->load->database();
         $this->db->insert('pedido', $pedido);
@@ -127,9 +156,9 @@ class Pedido extends CI_Controller {
         foreach ($query->result() as $row) {
             $pedido_id = $row->id;
         }
-        $valorPedido = $dados['valorPedido'] - $dados['desconto'];
+        $valorPedido = $dados['valor'] - $dados['desconto'];
         foreach ($dados['listaProduto'] as $produto) {
-            $pedido_produto = array('pedido' => $pedido_id, 'produto' => $produto['id'], 'quantidade' => $produto['quantidadeCompra'],
+            $pedido_produto = array('pedido' => $pedido_id, 'produto' => $produto['id'], 'quantidade' => $produto['quantidade'],
                 'valor' => $produto['valor'], 'id_usuario' => $dadosToken->id, 'ativo' => '1');
             $this->db->insert('pedido_produto', $pedido_produto);
         }
