@@ -73,6 +73,56 @@ class Pedido extends CI_Controller {
         echo json_encode($retorno);
     }
 
+    private function getClienteById($id, $idUsuario) {
+        $cliente = null;
+        $this->load->database();
+        $query = $this->db->query("SELECT c.id , p.nome, p.sobre_nome "
+                . " FROM cliente c INNER JOIN pessoa p ON c.id_pessoa = p.id AND c.id_usuario = p.id_usuario"
+                . " where p.ativo = true and c.id = " . $id . " and c.id_usuario = " . $idUsuario);
+        foreach ($query->result() as $row) {
+            $nome = $row->nome . " " . $row->sobre_nome;
+            $cliente = array('id' => $row->id, 'nome' => $nome);
+        }
+        return ($cliente);
+    }
+
+    private function getListaProdutoById($idPedido, $idUsuario) {
+        $listaProduto = null;
+        $this->load->database();
+        $query = $this->db->query("SELECT pp.*,p.id as pId, p.descricao, p.valor as pValor FROM pedido_produto pp inner join produto p on pp.produto = p.id and pp.id_usuario = p.id_usuario "
+                . " where pp.ativo = true and pp.pedido = " . $idPedido . " and pp.id_usuario = " . $idUsuario);
+        foreach ($query->result() as $row) {
+            $produto = array('id_pedido' => $row->id, 'id' => $row->pId, 'descricao' => $row->descricao, 'valor' => $row->pValor, 'quantidade' => $row->quantidade);
+            $listaProduto[] = $produto;
+            unset($produto);
+        }
+        return ($listaProduto);
+    }
+
+    private function getListaParcelas($idPedido, $idUsuario) {
+        $listaProduto = null;
+        $this->load->database();
+        $query = $this->db->query("SELECT * FROM pedido_parcelamento"
+                . " where ativo = true and pedido = " . $idPedido . " and id_usuario = " . $idUsuario);
+        foreach ($query->result() as $row) {
+            $produto = array('id' => $row->id, 'status' => $row->status, 'valor' => $row->valor, 'data_pagamento' => $row->data_pagamento);
+            $listaProduto[] = $produto;
+            unset($produto);
+        }
+        return ($listaProduto);
+    }
+
+    private function verificaPedidoPendente($idPedido, $idUsuario) {
+        $retono = true;
+        $this->load->database();
+        $query = $this->db->query("SELECT * FROM pedido_parcelamento"
+                . " where ativo = true and status = 1 and pedido = " . $idPedido . " and id_usuario = " . $idUsuario);
+        foreach ($query->result() as $row) {
+            $retono = false;
+        }
+        return ($retono);
+    }
+
     public function getPedido() {
         $data = json_decode(file_get_contents('php://input'), true);
         $jwtUtil = new JwtUtil();
@@ -80,7 +130,6 @@ class Pedido extends CI_Controller {
         $id = $data['idPedido'];
         $retorno = null;
         if (isset($token) && $token != null && $jwtUtil->validate($token) && isset($id) && $id > 0) {
-            $this->load->library('clienteLbl');
             $dadosToken = json_decode($jwtUtil->decode($token));
             $this->load->database();
             $query = $this->db->query("SELECT * FROM pedido " .
@@ -88,12 +137,47 @@ class Pedido extends CI_Controller {
             $pedido = null;
             foreach ($query->result() as $row) {
                 $dataVencimento = substr($row->data_vencimento, 0, 10);
-                $cliente = $this->clienteLbl->getCliente($id, $dadosToken->id);
+                $cliente = $this->getClienteById($row->id_cliente, $dadosToken->id);
+                $listaProduto = $this->getListaProdutoById($row->id, $dadosToken->id);
+                $listaParcelas = $this->getListaParcelas($row->id, $dadosToken->id);
                 $pedido = array('id' => $row->id, 'descricao' => $row->descricao, 'valor' => $row->valor, 'desconto' => $row->desconto
                     , 'data_vencimento' => $dataVencimento, 'tipo_pedido' => $row->tipo_pedido, 'status' => $row->status, 'forma_pagamento' => $row->forma_pagamento,
-                    'cliente' => $cliente);
+                    'cliente' => $cliente, 'listaProduto' => $listaProduto, 'listaParcelas' => $listaParcelas);
             }
             $retorno = array('token' => $token, 'pedido' => $pedido);
+        } else {
+            $retorno = array('token' => false);
+        }
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($retorno);
+    }
+
+    public function pagarParcela() {
+        $data = json_decode(file_get_contents('php://input'), true);
+        $jwtUtil = new JwtUtil();
+        $token = $data['token'];
+        $retorno = null;
+        if ($token != null && $jwtUtil->validate($token)) {
+            $dadosToken = json_decode($jwtUtil->decode($token));
+            $parcelaAux = $data['parcela'];
+            $pedidoId = $data['pedidoId'];
+            $parcela = array('status' => 2, 'data_pagamento' => date("Y-m-d"));
+            $dadosToken = json_decode($jwtUtil->decode($token));
+            $this->load->database();
+            $this->db->where('id', $parcelaAux['id']);
+            $this->db->where('pedido', $pedidoId);
+            $this->db->where('id_usuario', $dadosToken->id);
+            $this->db->update('pedido_parcelamento', $parcela);
+
+            if ($this->verificaPedidoPendente($pedidoId, $dadosToken->id)) {
+                $pedido = array('status' => 2, 'data_pagamento' => date("Y-m-d"));
+                $this->db->where('id', $pedidoId);
+                $this->db->where('id_usuario', $dadosToken->id);
+                $this->db->update('pedido', $pedido);
+            }
+
+            $retorno = array('token' => $token, 'msgRetorno' => 'Pago com sucesso!');
         } else {
             $retorno = array('token' => false);
         }
