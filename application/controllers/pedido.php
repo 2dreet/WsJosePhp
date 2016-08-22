@@ -186,6 +186,29 @@ class Pedido extends CI_Controller {
         echo json_encode($retorno);
     }
 
+    public function pagarPedido() {
+        $data = json_decode(file_get_contents('php://input'), true);
+        $jwtUtil = new JwtUtil();
+        $token = $data['token'];
+        $retorno = null;
+        if ($token != null && $jwtUtil->validate($token)) {
+            $dadosToken = json_decode($jwtUtil->decode($token));
+            $pedidoId = $data['pedidoId'];
+            $this->load->database();
+            $pedido = array('status' => 2, 'data_pagamento' => date("Y-m-d"));
+            $this->db->where('id', $pedidoId);
+            $this->db->where('id_usuario', $dadosToken->id);
+            $this->db->update('pedido', $pedido);
+
+            $retorno = array('token' => $token, 'msgRetorno' => 'Pago com sucesso!');
+        } else {
+            $retorno = array('token' => false);
+        }
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($retorno);
+    }
+
     public function enviarPedido() {
         $data = json_decode(file_get_contents('php://input'), true);
         $jwtUtil = new JwtUtil();
