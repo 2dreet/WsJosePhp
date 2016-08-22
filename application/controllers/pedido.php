@@ -53,7 +53,7 @@ class Pedido extends CI_Controller {
             foreach ($query->result() as $row) {
                 $dataVencimento = substr($row->data_vencimento, 0, 10);
                 $pedido = array('id' => $row->id, 'descricao' => $row->descricao, 'valor' => $row->valor, 'desconto' => $row->desconto
-                    , 'dataVencimento' => $dataVencimento, 'cliente' => $row->nome, 'tipo_pedido' => $row->tipo_pedido, 'status' => $row->status);
+                    , 'dataVencimento' => $dataVencimento, 'cliente' => $row->nome, 'tipo_pedido' => $row->tipo_pedido, 'status' => $row->status, 'entregue' => $row->entregue);
                 $listaPedido[] = $pedido;
                 unset($pedido);
             }
@@ -142,7 +142,7 @@ class Pedido extends CI_Controller {
                 $listaParcelas = $this->getListaParcelas($row->id, $dadosToken->id);
                 $pedido = array('id' => $row->id, 'descricao' => $row->descricao, 'valor' => $row->valor, 'desconto' => $row->desconto
                     , 'data_vencimento' => $dataVencimento, 'tipo_pedido' => $row->tipo_pedido, 'status' => $row->status, 'forma_pagamento' => $row->forma_pagamento,
-                    'cliente' => $cliente, 'listaProduto' => $listaProduto, 'listaParcelas' => $listaParcelas);
+                    'cliente' => $cliente, 'listaProduto' => $listaProduto, 'listaParcelas' => $listaParcelas, 'entregue' => $row->entregue);
             }
             $retorno = array('token' => $token, 'pedido' => $pedido);
         } else {
@@ -201,6 +201,29 @@ class Pedido extends CI_Controller {
             $this->db->update('pedido', $pedido);
 
             $retorno = array('token' => $token, 'msgRetorno' => 'Pago com sucesso!');
+        } else {
+            $retorno = array('token' => false);
+        }
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($retorno);
+    }
+
+    public function entregarPedido() {
+        $data = json_decode(file_get_contents('php://input'), true);
+        $jwtUtil = new JwtUtil();
+        $token = $data['token'];
+        $retorno = null;
+        if ($token != null && $jwtUtil->validate($token)) {
+            $dadosToken = json_decode($jwtUtil->decode($token));
+            $pedidoId = $data['pedidoId'];
+            $this->load->database();
+            $pedido = array('entregue' => 1, 'data_entrega' => date("Y-m-d"));
+            $this->db->where('id', $pedidoId);
+            $this->db->where('id_usuario', $dadosToken->id);
+            $this->db->update('pedido', $pedido);
+
+            $retorno = array('token' => $token, 'msgRetorno' => 'Entregue com sucesso!');
         } else {
             $retorno = array('token' => false);
         }
