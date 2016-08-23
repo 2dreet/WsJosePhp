@@ -175,6 +175,11 @@ class Pedido extends CI_Controller {
                 $this->db->where('id', $pedidoId);
                 $this->db->where('id_usuario', $dadosToken->id);
                 $this->db->update('pedido', $pedido);
+            } else {
+                $pedido = array('status' => 3, 'data_pagamento' => date("Y-m-d"));
+                $this->db->where('id', $pedidoId);
+                $this->db->where('id_usuario', $dadosToken->id);
+                $this->db->update('pedido', $pedido);
             }
 
             $retorno = array('token' => $token, 'msgRetorno' => 'Pago com sucesso!');
@@ -255,12 +260,12 @@ class Pedido extends CI_Controller {
 
     function deletar($dados, $token) {
         $jwtUtil = new JwtUtil();
-        $fornecedor = array('ativo' => '0');
+        $pedido = array('ativo' => '0');
         $dadosToken = json_decode($jwtUtil->decode($token));
         $this->load->database();
         $this->db->where('id', $dados['id']);
         $this->db->where('id_usuario', $dadosToken->id);
-        $this->db->update('fornecedor', $fornecedor);
+        $this->db->update('pedido', $pedido);
         $retorno = array('token' => $token, 'msgRetorno' => 'Deletado com sucesso!');
         return ($retorno);
     }
@@ -305,12 +310,42 @@ class Pedido extends CI_Controller {
 
     function alterar($dados, $token) {
         $jwtUtil = new JwtUtil();
-        $fornecedor = array('descricao' => $dados['descricao'], 'email' => $dados['email'], 'telefone' => $dados['telefone']);
         $dadosToken = json_decode($jwtUtil->decode($token));
+        $pedido_id = $dados['id'];
         $this->load->database();
-        $this->db->where('id', $dados['id']);
+        $this->db->where('pedido', $pedido_id);
         $this->db->where('id_usuario', $dadosToken->id);
-        $this->db->update('fornecedor', $fornecedor);
+        $this->db->delete('pedido_parcelamento');
+        
+        $this->db->where('pedido', $pedido_id);
+        $this->db->where('id_usuario', $dadosToken->id);
+        $this->db->delete('pedido_produto');
+        
+        $dataVencimento = substr($dados['data_vencimento'], 0, 10);
+        if (!isset($dados['desconto'])) {
+            $dados['desconto'] = 0;
+        }
+        
+        $pedido = array('descricao' => $dados['descricao'], 'desconto' => $dados['desconto'], 'valor' => $dados['valor'], 'data_vencimento' => $dataVencimento,
+            'forma_pagamento' => $dados['forma_pagamento']['id'], 'tipo_pedido' => $dados['tipo_pedido']['id'],
+            'id_cliente' => $dados['cliente']['id'], 'data_lancamento' => date("Y-m-d"));
+        $this->db->where('id', $pedido_id);
+        $this->db->where('id_usuario', $dadosToken->id);
+        $this->db->update('pedido', $pedido);
+        $valorPedido = $dados['valor'] - $dados['desconto'];
+        foreach ($dados['listaProduto'] as $produto) {
+            $pedido_produto = array('pedido' => $pedido_id, 'produto' => $produto['id'], 'quantidade' => $produto['quantidade'],
+                'valor' => $produto['valor'], 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+            $this->db->insert('pedido_produto', $pedido_produto);
+        }
+        if (isset($dados['parcelas']) && $dados['parcelas'] > 0) {
+            $valorParcela = round($valorPedido / $dados['parcelas'], 2);
+            for ($i = 0; $i < $dados['parcelas']; $i++) {
+                $pedidoParcelamento = array('pedido' => $pedido_id, 'status' => 1, 'valor' => $valorParcela, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+                $this->db->insert('pedido_parcelamento', $pedidoParcelamento);
+            }
+        }
+        
         $retorno = array('token' => $token, 'msgRetorno' => 'Alterado com sucesso!');
         return ($retorno);
     }
