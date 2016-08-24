@@ -20,27 +20,23 @@ class Pedido extends CI_Controller {
                 $pagina = $pagina * $limit;
             }
             $where = "";
-//            if (isset($data['buscaAvancada'])) {
-//                $buscaAvancada = $data['buscaAvancada'];
-//
-//                if (isset($buscaAvancada['descricao']) && $buscaAvancada['descricao'] != null && trim($buscaAvancada['descricao']) != "") {
-//                    $where .= " AND descricao like '%" . $buscaAvancada['descricao'] . "%'";
-//                }
-//
-//                if (isset($buscaAvancada['email']) && $buscaAvancada['email'] != null && trim($buscaAvancada['email']) != "") {
-//                    $where .= " AND email like '%" . $buscaAvancada['email'] . "%'";
-//                }
-//
-//                if (isset($buscaAvancada['telefone']) && $buscaAvancada['telefone'] != null && trim($buscaAvancada['telefone']) != "") {
-//                    $where .= " AND telefone like '%" . $buscaAvancada['telefone'] . "%'";
-//                }
-//            }
-//
-//            if (isset($data['buscaDescricao'])) {
-//                if (isset($data['buscaDescricao']) && $data['buscaDescricao'] != null && trim($data['buscaDescricao']) != "") {
-//                    $where .= " AND descricao like '%" . $data['buscaDescricao'] . "%'";
-//                }
-//            }
+            if (isset($data['buscaAvancada'])) {
+                $buscaAvancada = $data['buscaAvancada'];
+                if (isset($buscaAvancada['descricao']) && $buscaAvancada['descricao'] != null && trim($buscaAvancada['descricao']) != "") {
+                    $where .= " AND descricao like '%" . $buscaAvancada['descricao'] . "%'";
+                }
+                if (isset($buscaAvancada['email']) && $buscaAvancada['email'] != null && trim($buscaAvancada['email']) != "") {
+                    $where .= " AND email like '%" . $buscaAvancada['email'] . "%'";
+                }
+                if (isset($buscaAvancada['telefone']) && $buscaAvancada['telefone'] != null && trim($buscaAvancada['telefone']) != "") {
+                    $where .= " AND telefone like '%" . $buscaAvancada['telefone'] . "%'";
+                }
+            }
+            if (isset($data['buscaDescricao'])) {
+                if (isset($data['buscaDescricao']) && $data['buscaDescricao'] != null && trim($data['buscaDescricao']) != "") {
+                    $where .= " AND descricao like '%" . $data['buscaDescricao'] . "%'";
+                }
+            }
             $listaPedido = null;
             $dadosToken = json_decode($jwtUtil->decode($token));
             $this->load->database();
@@ -71,6 +67,21 @@ class Pedido extends CI_Controller {
 
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($retorno);
+    }
+
+    private function getPedidoById($id, $idUsuario) {
+        $this->load->database();
+        $query = $this->db->query("SELECT p.* , concat(ps.nome, ' ', ps.sobre_nome) as nome FROM pedido p " .
+                "inner join cliente c on p.id_cliente = c.id and p.id_usuario = c.id_usuario " .
+                "inner join pessoa ps on ps.id = c.id_pessoa and ps.id_usuario = c.id_usuario " .
+                "inner join tipo_pedido tp on tp.id = p.tipo_pedido " .
+                "inner join status_pedido sp on sp.id = p.status " .
+                " where p.ativo = true and p.id = '" . $id . "' and p.id_usuario = " . $idUsuario);
+        foreach ($query->result() as $row) {
+            $dataVencimento = substr($row->data_vencimento, 0, 10);
+            return array('id' => $row->id, 'descricao' => $row->descricao, 'valor' => $row->valor, 'desconto' => $row->desconto
+                , 'dataVencimento' => $dataVencimento, 'cliente' => $row->nome, 'tipo_pedido' => $row->tipo_pedido, 'status' => $row->status, 'entregue' => $row->entregue);
+        }
     }
 
     private function getClienteById($id, $idUsuario) {
@@ -277,13 +288,9 @@ class Pedido extends CI_Controller {
         if (!isset($dados['desconto'])) {
             $dados['desconto'] = 0;
         }
-        $status = 1;
-        if (isset($dados['pedido_pago']) && $dados['pedido_pago']) {
-            $status = 2;
-        }
         $pedido = array('descricao' => $dados['descricao'], 'desconto' => $dados['desconto'], 'valor' => $dados['valor'], 'data_vencimento' => $dataVencimento,
             'forma_pagamento' => $dados['forma_pagamento']['id'], 'tipo_pedido' => $dados['tipo_pedido']['id'],
-            'id_cliente' => $dados['cliente']['id'], 'status' => $status, 'data_lancamento' => date("Y-m-d"), 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+            'id_cliente' => $dados['cliente']['id'], 'status' => 1, 'data_lancamento' => date("Y-m-d"), 'id_usuario' => $dadosToken->id, 'ativo' => '1');
         $this->load->database();
         $this->db->insert('pedido', $pedido);
         $pedido_id = 0;
@@ -304,7 +311,7 @@ class Pedido extends CI_Controller {
                 $this->db->insert('pedido_parcelamento', $pedidoParcelamento);
             }
         }
-        $retorno = array('token' => $token, 'msgRetorno' => 'Cadastrado com sucesso!');
+        $retorno = array('token' => $token, 'msgRetorno' => 'Cadastrado com sucesso!', 'pedido' => $this->getPedidoById($pedido_id, $dadosToken->id));
         return ($retorno);
     }
 
@@ -316,16 +323,16 @@ class Pedido extends CI_Controller {
         $this->db->where('pedido', $pedido_id);
         $this->db->where('id_usuario', $dadosToken->id);
         $this->db->delete('pedido_parcelamento');
-        
+
         $this->db->where('pedido', $pedido_id);
         $this->db->where('id_usuario', $dadosToken->id);
         $this->db->delete('pedido_produto');
-        
+
         $dataVencimento = substr($dados['data_vencimento'], 0, 10);
         if (!isset($dados['desconto'])) {
             $dados['desconto'] = 0;
         }
-        
+
         $pedido = array('descricao' => $dados['descricao'], 'desconto' => $dados['desconto'], 'valor' => $dados['valor'], 'data_vencimento' => $dataVencimento,
             'forma_pagamento' => $dados['forma_pagamento']['id'], 'tipo_pedido' => $dados['tipo_pedido']['id'],
             'id_cliente' => $dados['cliente']['id'], 'data_lancamento' => date("Y-m-d"));
@@ -345,8 +352,8 @@ class Pedido extends CI_Controller {
                 $this->db->insert('pedido_parcelamento', $pedidoParcelamento);
             }
         }
-        
-        $retorno = array('token' => $token, 'msgRetorno' => 'Alterado com sucesso!');
+
+        $retorno = array('token' => $token, 'msgRetorno' => 'Alterado com sucesso!', 'pedido' => $this->getPedidoById($pedido_id, $dadosToken->id));
         return ($retorno);
     }
 
