@@ -23,18 +23,39 @@ class Pedido extends CI_Controller {
             if (isset($data['buscaAvancada'])) {
                 $buscaAvancada = $data['buscaAvancada'];
                 if (isset($buscaAvancada['descricao']) && $buscaAvancada['descricao'] != null && trim($buscaAvancada['descricao']) != "") {
-                    $where .= " AND descricao like '%" . $buscaAvancada['descricao'] . "%'";
+                    $where .= " AND p.descricao like '%" . $buscaAvancada['descricao'] . "%'";
                 }
-                if (isset($buscaAvancada['email']) && $buscaAvancada['email'] != null && trim($buscaAvancada['email']) != "") {
-                    $where .= " AND email like '%" . $buscaAvancada['email'] . "%'";
+                if (isset($buscaAvancada['tipo_pedido']) && $buscaAvancada['tipo_pedido'] != null && $buscaAvancada['tipo_pedido']['id'] != "0") {
+                    $where .= " AND tipo_pedido = '" . $buscaAvancada['tipo_pedido']['id'] . "'";
                 }
-                if (isset($buscaAvancada['telefone']) && $buscaAvancada['telefone'] != null && trim($buscaAvancada['telefone']) != "") {
-                    $where .= " AND telefone like '%" . $buscaAvancada['telefone'] . "%'";
+                if (isset($buscaAvancada['status_pedido']) && $buscaAvancada['status_pedido'] != null && $buscaAvancada['status_pedido']['id'] != "0") {
+                    $where .= " AND status = '" . $buscaAvancada['status_pedido']['id'] . "'";
+                }
+                if (isset($buscaAvancada['entregue']) && $buscaAvancada['entregue'] != null && $buscaAvancada['entregue']['valor'] != "0") {
+                    $where .= " AND entregue = " . $buscaAvancada['entregue']['valor'];
+                }
+                if (isset($buscaAvancada['forma_pagamento']) && $buscaAvancada['forma_pagamento'] != null && $buscaAvancada['forma_pagamento']['id'] != "0") {
+                    $where .= " AND forma_pagamento = '" . $buscaAvancada['forma_pagamento']['id'] . "'";
+                }
+                if (isset($buscaAvancada['cliente']) && $buscaAvancada['cliente'] != null) {
+                    $where .= " AND id_cliente = '" . $buscaAvancada['cliente']['id'] . "'";
+                }
+                if (isset($buscaAvancada['data_vencimento_inicial']) && $buscaAvancada['data_vencimento_inicial'] != null) {
+                    $where .= " AND date(data_vencimento) >= date('" . substr($buscaAvancada['data_vencimento_inicial'], 0, 10) . "')";
+                }
+                if (isset($buscaAvancada['data_vencimento_final']) && $buscaAvancada['data_vencimento_final'] != null) {
+                    $where .= " AND date(data_vencimento) <= date('" . substr($buscaAvancada['data_vencimento_final'], 0, 10) . "')";
+                }
+                if (isset($buscaAvancada['data_pagamento_inicial']) && $buscaAvancada['data_pagamento_inicial'] != null) {
+                    $where .= " AND date(data_pagamento) >= date('" . substr($buscaAvancada['data_pagamento_inicial'], 0, 10) . "')";
+                }
+                if (isset($buscaAvancada['data_pagamento_final']) && $buscaAvancada['data_pagamento_final'] != null) {
+                    $where .= " AND date(data_pagamento) <= date('" . substr($buscaAvancada['data_pagamento_final'], 0, 10) . "')";
                 }
             }
             if (isset($data['buscaDescricao'])) {
                 if (isset($data['buscaDescricao']) && $data['buscaDescricao'] != null && trim($data['buscaDescricao']) != "") {
-                    $where .= " AND descricao like '%" . $data['buscaDescricao'] . "%'";
+                    $where .= " AND p.descricao like '%" . $data['buscaDescricao'] . "%'";
                 }
             }
             $listaPedido = null;
@@ -55,7 +76,7 @@ class Pedido extends CI_Controller {
             }
 
             $totalRegistro = 0;
-            $query = $this->db->query("SELECT count(*) as count FROM pedido where ativo = true " . $where . " and id_usuario = " . $dadosToken->id);
+            $query = $this->db->query("SELECT count(*) as count FROM pedido p where p.ativo = true " . $where . " and p.id_usuario = " . $dadosToken->id);
             foreach ($query->result() as $row) {
                 $totalRegistro = $row->count;
             }
