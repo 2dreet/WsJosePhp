@@ -117,8 +117,7 @@ class Cliente extends CI_Controller {
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($retorno);
     }
-    
-    
+
     public function getCliente() {
         $data = json_decode(file_get_contents('php://input'), true);
         $jwtUtil = new JwtUtil();
@@ -161,168 +160,136 @@ class Cliente extends CI_Controller {
         echo json_encode($retorno);
     }
 
-    public function updateCliente() {
+    public function enviarCliente() {
         $data = json_decode(file_get_contents('php://input'), true);
         $jwtUtil = new JwtUtil();
         $token = $data['token'];
-        $dados = $data['dados'];
         $retorno = null;
         if ($token != null && $jwtUtil->validate($token)) {
-            $dadosToken = json_decode($jwtUtil->decode($token));
-            $dadosEndereco = $dados['endereco'];
-            $dadosTelefone = $dados['listaTelefone'];
-            $dadosTelefoneRemovido = null;
-            if (isset($dados['listaTelefoneRemovido'])) {
-                $dadosTelefoneRemovido = $dados['listaTelefoneRemovido'];
+            if ($data['tipoFuncao'] == 'inserir') {
+                $retorno = $this->insertCliente($data['dados'], $token);
+            } else if ($data['tipoFuncao'] == 'alterar') {
+                $retorno = $this->updateCliente($data['dados'], $token);
+            } else if ($data['tipoFuncao'] == 'deletar') {
+                $retorno = $this->deleteCliente($data['dados'], $token);
             }
-            $dataNascimento = substr($dados['pessoa']['dataNascimento'], 0, 10);
-
-            $this->load->database();
-            $pessoa = array('nome' => $dados['pessoa']['nome'], 'sobre_nome' => $dados['pessoa']['sobreNome'], 'sexo' => $dados['pessoa']['sexo'], 'data_cadastro' => date("Y-m-d"), 'data_nascimento' => $dataNascimento, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
-            $this->db->where('id', $dados['pessoa']['id']);
-            $this->db->where('id_usuario', $dadosToken->id);
-            $this->db->update('pessoa', $pessoa);
-
-            $pessoa_id = $dados['pessoa']['id'];
-
-            if (!isset($dados['rg'])) {
-                $dados['rg'] = "";
-            }
-
-            if (!isset($dados['cpf'])) {
-                $dados['cpf'] = "";
-            }
-
-            $cliente = array('cpf' => $dados['cpf'], 'rg' => $dados['rg'], 'email' => $dados['email']);
-
-            $this->db->where('id', $dados['id']);
-            $this->db->where('id_pessoa', $pessoa_id);
-            $this->db->where('id_usuario', $dadosToken->id);
-            $this->db->update('cliente', $cliente);
-
-            if (!isset($dadosEndereco['complemento'])) {
-                $dadosEndereco['complemento'] = "";
-            }
-
-            $endereco = array('rua' => $dadosEndereco['logradouro'], 'numero' => $dadosEndereco['numero'], 'complemento' => $dadosEndereco['complemento'],
-                'bairro' => $dadosEndereco['bairro'], 'cidade' => $dadosEndereco['cidade'], 'estado' => $dadosEndereco['uf'], 'cep' => $dadosEndereco['cep']);
-            $this->db->where('id', $dadosEndereco['id']);
-            $this->db->where('id_pessoa', $pessoa_id);
-            $this->db->where('id_usuario', $dadosToken->id);
-            $this->db->update('pessoa_endereco', $endereco);
-
-
-            foreach ($dadosTelefone as $telefoneAux) {
-                if (!isset($telefoneAux['id'])) {
-                    $telefone = array('telefone' => $telefoneAux['numero'], 'tipo_telefone' => $telefoneAux['tipoTelefone']['id'], 'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
-                    $this->db->insert('pessoa_telefone', $telefone);
-                } else {
-                    $telefone = array('telefone' => $telefoneAux['numero'], 'tipo_telefone' => $telefoneAux['tipoTelefone']['id']);
-                    $this->db->where('id', $telefoneAux['id']);
-                    $this->db->where('id_pessoa', $pessoa_id);
-                    $this->db->where('id_usuario', $dadosToken->id);
-                    $this->db->update('pessoa_telefone', $telefone);
-                }
-                unset($telefone);
-            }
-
-            if ($dadosTelefoneRemovido != null) {
-                foreach ($dadosTelefoneRemovido as $telefoneAux) {
-                    $telefone = array('ativo' => '0');
-                    $this->db->where('id', $telefoneAux['id']);
-                    $this->db->where('id_pessoa', $pessoa_id);
-                    $this->db->where('id_usuario', $dadosToken->id);
-                    $this->db->update('pessoa_telefone', $telefone);
-                    unset($telefone);
-                }
-            }
-
-            $retorno = array('token' => $token);
         } else {
             $retorno = array('token' => false);
         }
-
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($retorno);
     }
 
-    public function insertCliente() {
-        $data = json_decode(file_get_contents('php://input'), true);
+    function updateCliente($dados, $token) {
         $jwtUtil = new JwtUtil();
-        $token = $data['token'];
-        $dados = $data['dados'];
-        $retorno = null;
-        if ($token != null && $jwtUtil->validate($token)) {
-            $dadosToken = json_decode($jwtUtil->decode($token));
-            $dadosEndereco = $dados['endereco'];
-            $dadosTelefone = $dados['listaTelefone'];
-            $dataNascimento = substr($dados['pessoa']['dataNascimento'], 0, 10);
-
-            $this->load->database();
-            $pessoa = array('nome' => $dados['pessoa']['nome'], 'sobre_nome' => $dados['pessoa']['sobreNome'], 'sexo' => $dados['pessoa']['sexo'], 'data_cadastro' => date("Y-m-d"), 'data_nascimento' => $dataNascimento, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
-            $this->db->insert('pessoa', $pessoa);
-
-            $pessoa_id = 0;
-            $query = $this->db->query("SELECT LAST_INSERT_ID() as id FROM pessoa WHERE ativo = true AND id_usuario = " . $dadosToken->id . " LIMIT 1");
-            foreach ($query->result() as $row) {
-                $pessoa_id = $row->id;
-            }
-
-            if (!isset($dados['rg'])) {
-                $dados['rg'] = "";
-            }
-
-            if (!isset($dados['cpf'])) {
-                $dados['cpf'] = "";
-            }
-
-            $cliente = array('cpf' => $dados['cpf'], 'rg' => $dados['rg'], 'email' => $dados['email'], 'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id);
-            $this->db->insert('cliente', $cliente);
-
-            if (!isset($dadosEndereco['complemento'])) {
-                $dadosEndereco['complemento'] = "";
-            }
-
-            $endereco = array('rua' => $dadosEndereco['logradouro'], 'numero' => $dadosEndereco['numero'], 'complemento' => $dadosEndereco['complemento'],
-                'bairro' => $dadosEndereco['bairro'], 'cidade' => $dadosEndereco['cidade'], 'estado' => $dadosEndereco['uf'], 'cep' => $dadosEndereco['cep'],
-                'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
-            $this->db->insert('pessoa_endereco', $endereco);
-
-            foreach ($dadosTelefone as $telefoneAux) {
+        $dadosToken = json_decode($jwtUtil->decode($token));
+        $dadosEndereco = $dados['endereco'];
+        $dadosTelefone = $dados['listaTelefone'];
+        $dadosTelefoneRemovido = null;
+        if (isset($dados['listaTelefoneRemovido'])) {
+            $dadosTelefoneRemovido = $dados['listaTelefoneRemovido'];
+        }
+        $dataNascimento = substr($dados['pessoa']['dataNascimento'], 0, 10);
+        $this->load->database();
+        $pessoa = array('nome' => $dados['pessoa']['nome'], 'sobre_nome' => $dados['pessoa']['sobreNome'], 'sexo' => $dados['pessoa']['sexo'], 'data_cadastro' => date("Y-m-d"), 'data_nascimento' => $dataNascimento, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+        $this->db->where('id', $dados['pessoa']['id']);
+        $this->db->where('id_usuario', $dadosToken->id);
+        $this->db->update('pessoa', $pessoa);
+        $pessoa_id = $dados['pessoa']['id'];
+        if (!isset($dados['rg'])) {
+            $dados['rg'] = "";
+        }
+        if (!isset($dados['cpf'])) {
+            $dados['cpf'] = "";
+        }
+        $cliente = array('cpf' => $dados['cpf'], 'rg' => $dados['rg'], 'email' => $dados['email']);
+        $this->db->where('id', $dados['id']);
+        $this->db->where('id_pessoa', $pessoa_id);
+        $this->db->where('id_usuario', $dadosToken->id);
+        $this->db->update('cliente', $cliente);
+        if (!isset($dadosEndereco['complemento'])) {
+            $dadosEndereco['complemento'] = "";
+        }
+        $endereco = array('rua' => $dadosEndereco['logradouro'], 'numero' => $dadosEndereco['numero'], 'complemento' => $dadosEndereco['complemento'],
+            'bairro' => $dadosEndereco['bairro'], 'cidade' => $dadosEndereco['cidade'], 'estado' => $dadosEndereco['uf'], 'cep' => $dadosEndereco['cep']);
+        $this->db->where('id', $dadosEndereco['id']);
+        $this->db->where('id_pessoa', $pessoa_id);
+        $this->db->where('id_usuario', $dadosToken->id);
+        $this->db->update('pessoa_endereco', $endereco);
+        foreach ($dadosTelefone as $telefoneAux) {
+            if (!isset($telefoneAux['id'])) {
                 $telefone = array('telefone' => $telefoneAux['numero'], 'tipo_telefone' => $telefoneAux['tipoTelefone']['id'], 'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
                 $this->db->insert('pessoa_telefone', $telefone);
+            } else {
+                $telefone = array('telefone' => $telefoneAux['numero'], 'tipo_telefone' => $telefoneAux['tipoTelefone']['id']);
+                $this->db->where('id', $telefoneAux['id']);
+                $this->db->where('id_pessoa', $pessoa_id);
+                $this->db->where('id_usuario', $dadosToken->id);
+                $this->db->update('pessoa_telefone', $telefone);
+            }
+            unset($telefone);
+        }
+        if ($dadosTelefoneRemovido != null) {
+            foreach ($dadosTelefoneRemovido as $telefoneAux) {
+                $telefone = array('ativo' => '0');
+                $this->db->where('id', $telefoneAux['id']);
+                $this->db->where('id_pessoa', $pessoa_id);
+                $this->db->where('id_usuario', $dadosToken->id);
+                $this->db->update('pessoa_telefone', $telefone);
                 unset($telefone);
             }
-
-            $retorno = array('token' => $token);
-        } else {
-            $retorno = array('token' => false);
         }
-
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode($retorno);
+        return array('token' => $token, 'msgRetorno' => 'Alterado com sucesso!');
     }
 
-    public function deleteCliente() {
-        $data = json_decode(file_get_contents('php://input'), true);
+    function insertCliente($dados, $token) {
         $jwtUtil = new JwtUtil();
-        $token = $data['token'];
-        $dados = $data['dados'];
-        $retorno = null;
-        if ($token != null && $jwtUtil->validate($token)) {
-            $dadosToken = json_decode($jwtUtil->decode($token));
-            $this->load->database();
-            $pessoa = array('ativo' => '0');
-            $this->db->where('id', $dados['id']);
-            $this->db->where('id_usuario', $dadosToken->id);
-            $this->db->update('pessoa', $pessoa);
-            $retorno = array('token' => $token);
-        } else {
-            $retorno = array('token' => false);
+        $dadosToken = json_decode($jwtUtil->decode($token));
+        $dadosEndereco = $dados['endereco'];
+        $dadosTelefone = $dados['listaTelefone'];
+        $dataNascimento = substr($dados['pessoa']['dataNascimento'], 0, 10);
+        $this->load->database();
+        $pessoa = array('nome' => $dados['pessoa']['nome'], 'sobre_nome' => $dados['pessoa']['sobreNome'], 'sexo' => $dados['pessoa']['sexo'], 'data_cadastro' => date("Y-m-d"), 'data_nascimento' => $dataNascimento, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+        $this->db->insert('pessoa', $pessoa);
+        $pessoa_id = 0;
+        $query = $this->db->query("SELECT LAST_INSERT_ID() as id FROM pessoa WHERE ativo = true AND id_usuario = " . $dadosToken->id . " LIMIT 1");
+        foreach ($query->result() as $row) {
+            $pessoa_id = $row->id;
         }
+        if (!isset($dados['rg'])) {
+            $dados['rg'] = "";
+        }
+        if (!isset($dados['cpf'])) {
+            $dados['cpf'] = "";
+        }
+        $cliente = array('cpf' => $dados['cpf'], 'rg' => $dados['rg'], 'email' => $dados['email'], 'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id);
+        $this->db->insert('cliente', $cliente);
 
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode($retorno);
+        if (!isset($dadosEndereco['complemento'])) {
+            $dadosEndereco['complemento'] = "";
+        }
+        $endereco = array('rua' => $dadosEndereco['logradouro'], 'numero' => $dadosEndereco['numero'], 'complemento' => $dadosEndereco['complemento'],
+            'bairro' => $dadosEndereco['bairro'], 'cidade' => $dadosEndereco['cidade'], 'estado' => $dadosEndereco['uf'], 'cep' => $dadosEndereco['cep'],
+            'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+        $this->db->insert('pessoa_endereco', $endereco);
+
+        foreach ($dadosTelefone as $telefoneAux) {
+            $telefone = array('telefone' => $telefoneAux['numero'], 'tipo_telefone' => $telefoneAux['tipoTelefone']['id'], 'id_pessoa' => $pessoa_id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
+            $this->db->insert('pessoa_telefone', $telefone);
+            unset($telefone);
+        }
+        return array('token' => $token, 'msgRetorno' => 'Cadastrado com sucesso!');
+    }
+
+    function deleteCliente($dados, $token) {
+        $jwtUtil = new JwtUtil();
+        $dadosToken = json_decode($jwtUtil->decode($token));
+        $this->load->database();
+        $pessoa = array('ativo' => '0');
+        $this->db->where('id', $dados['pessoa']['id']);
+        $this->db->where('id_usuario', $dadosToken->id);
+        $this->db->update('pessoa', $pessoa);
+        return array('token' => $token, 'msgRetorno' => 'Deletado com sucesso!');
     }
 
 }
