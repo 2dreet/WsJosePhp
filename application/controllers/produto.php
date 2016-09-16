@@ -3,166 +3,63 @@
 if (!defined('BASEPATH'))
     exit('No direct script access allowed');
 
-include 'JwtUtil.php';
-
 class Produto extends CI_Controller {
+
+    function __construct() {
+        parent::__construct();
+        $this->load->model('produto_dao');
+    }
 
     public function getAllproduto() {
         $data = json_decode(file_get_contents('php://input'), true);
-        $jwtUtil = new JwtUtil();
-        $token = $data['token'];
-        $pagina = $data['pagina'];
-        $buscaAvancada = null;
-        $retorno = null;
-        if (isset($token) && $token != null && $jwtUtil->validate($token) && isset($pagina) && $pagina >= 0) {
-            $where = "";
-            if (isset($data['buscaAvancada'])) {
-                $buscaAvancada = $data['buscaAvancada'];
-
-                if (isset($buscaAvancada['descricao']) && $buscaAvancada['descricao'] != null && trim($buscaAvancada['descricao']) != "") {
-                    $where .= " AND descricao like '%" . $buscaAvancada['descricao'] . "%'";
-                }
-
-                if (isset($buscaAvancada['fornecedor']) && $buscaAvancada['fornecedor'] != null && $buscaAvancada['fornecedor'] != "") {
-                    $where .= " AND id_fornecedor = " . $buscaAvancada['fornecedor']['id'];
-                }
-
-                if (isset($buscaAvancada['estoquePositivo']) && $buscaAvancada['estoquePositivo'] != null && $buscaAvancada['estoquePositivo'] == true) {
-                    $where .= " AND estoque > 0 ";
-                }
-            }
-
-            if (isset($data['buscaAvancada'])) {
-                if (isset($data['buscaDescricao']) && $data['buscaDescricao'] != null && trim($data['buscaDescricao']) != "") {
-                    $where .= " AND descricao like '%" . $data['buscaDescricao'] . "%'";
-                }
-            }
-
-            $listaProduto = null;
-            $dadosToken = json_decode($jwtUtil->decode($token));
-            if ($pagina > 0) {
-                $pagina = $pagina * 10;
-            }
-            $this->load->database();
-            $query = $this->db->query("SELECT * FROM produto where ativo = true and id_usuario = " . $dadosToken->id . $where . " LIMIT " . $pagina . ",10");
-            foreach ($query->result() as $row) {
-                $queryFornecedor = $this->db->query("SELECT * FROM fornecedor where ativo = true and id = " . $row->id_fornecedor);
-                $fornecedor = null;
-                foreach ($queryFornecedor->result() as $rowFornecedor) {
-                    $fornecedor = array('id' => $rowFornecedor->id, 'descricao' => $rowFornecedor->descricao, 'email' => $rowFornecedor->email, 'telefone' => $rowFornecedor->telefone);
-                }
-
-                $produto = array('id' => $row->id, 'descricao' => $row->descricao, 'valor' => $row->valor, 'observacao' => $row->observacao, 'estoque' => $row->estoque, 'fornecedor' => $fornecedor);
-                $listaProduto[] = ($produto);
-                unset($produto);
-                unset($fornecedor);
-            }
-
-            $totalRegistro = 0;
-            $query = $this->db->query("SELECT count(*) as count FROM produto where ativo = true and id_usuario = " . $dadosToken->id . $where);
-            foreach ($query->result() as $row) {
-                $totalRegistro = $row->count;
-            }
-
-            $retorno = array('token' => $token, 'dados' => $listaProduto, 'totalRegistro' => $totalRegistro);
+        if (isset($data['token']) && $data['token'] != null && jwt_validate($data['token']) && isset($data['pagina']) && $data['pagina'] >= 0) {
+            $retorno = $this->produto_dao->getListaproduto($data, getDadosTokenJson($data['token'])->id);
+            $retorno["token"] = $data['token'];
         } else {
             $retorno = array('token' => false);
         }
-
         header('Content-Type: application/json; charset=utf-8');
         echo (json_encode($retorno));
     }
 
     public function getMovimentacaoProduto() {
         $data = json_decode(file_get_contents('php://input'), true);
-        $jwtUtil = new JwtUtil();
-        $token = $data['token'];
-        $dados = $data['id'];
-        $pagina = $data['pagina'];
         $retorno = null;
-        if ($token != null && $jwtUtil->validate($token)) {
-            $retorno = array('token' => $token);
-            if ($dados != null && isset($data['data_inicial']) && isset($data['data_final']) && ( strlen($data['data_inicial']) >= 10 && strlen($data['data_final']) >= 10)) {
-                $dataInicial = substr($data['data_inicial'], 0, 10);
-                $dataFinal = substr($data['data_final'], 0, 10);
-                $listaMovimentacaoProduto = null;
-                $dadosToken = json_decode($jwtUtil->decode($token));
-                $this->load->database();
-
-                if ($pagina > 0) {
-                    $pagina = $pagina * 10;
-                }
-
-                $query = $this->db->query("SELECT pm.id, pm.observacao, pm.quantidade, pm.data_movimento, tm.descricao, tm.id as tipo_movimentacao FROM produto_movimentacao pm inner join tipo_movimentacao tm on pm.tipo_movimentacao = tm.id"
-                        . " where pm.ativo = true and pm.id_usuario = " . $dadosToken->id . " and pm.id_produto = " . $dados
-                        . "  AND DATE(data_movimento) >= '" . $dataInicial . "'"
-                        . "  AND DATE(data_movimento) <= '" . $dataFinal . "'"
-                        . " ORDER BY data_movimento desc LIMIT " . $pagina . ", 10");
-                foreach ($query->result() as $row) {
-                    $movimentacaoProduto = array('id' => $row->id, 'observacao' => $row->observacao, 'quantidade' => $row->quantidade,
-                        'data_movimento' => str_replace(" ", "T", $row->data_movimento), 'descricao' => $row->descricao, 'tipoMovimentacao' => $row->tipo_movimentacao);
-                    $listaMovimentacaoProduto[] = ($movimentacaoProduto);
-                    unset($movimentacaoProduto);
-                }
-
-                $totalRegistro = 0;
-                $query = $this->db->query("SELECT count(*) as count FROM produto_movimentacao"
-                        . " where ativo = true and id_usuario = " . $dadosToken->id . " and id_produto = " . $dados
-                        . "  AND DATE(data_movimento) >= '" . $dataInicial . "'"
-                        . "  AND DATE(data_movimento) <= '" . $dataFinal . "'");
-                foreach ($query->result() as $row) {
-                    $totalRegistro = $row->count;
-                }
-
-                $retorno = array('token' => $token, 'dados' => $listaMovimentacaoProduto, 'totalRegistro' => $totalRegistro, 'estoque' => $this->getEstoqueProduto($dados, $dadosToken->id));
+        if (isset($data['token']) && $data['token'] != null && jwt_validate($data['token'])) {
+            if ($data['id'] != null && isset($data['data_inicial']) && isset($data['data_final']) && ( strlen($data['data_inicial']) >= 10 && strlen($data['data_final']) >= 10)) {
+                $retorno = $this->produto_dao->getMovimentacaoProdutoByIdProduto($data, getDadosTokenJson($data['token'])->id);
+                $retorno["token"] = $data['token'];
             } else {
-                $retorno = array('token' => $token, 'dados' => null);
+                $retorno = array('token' => $data['token'], 'dados' => null);
             }
         } else {
             $retorno = array('token' => false);
         }
-
         header('Content-Type: application/json; charset=utf-8');
         echo (json_encode($retorno));
     }
 
     public function getProdutoImagem($idProduto, $token) {
-        $jwtUtil = new JwtUtil();
-        if (isset($token) && $token != null && $jwtUtil->validate($token)) {
+        if (isset($token) && $token != null && jwt_validate($token)) {
             if (isset($idProduto) && $idProduto != null) {
-                $dadosToken = json_decode($jwtUtil->decode($token));
-                $imagem = null;
-                $this->load->database();
-                $query = $this->db->query("SELECT imagem FROM produto where ativo = true and imagem is not null and id = " . $idProduto . " and id_usuario = " . $dadosToken->id . " limit 1");
-                foreach ($query->result() as $row) {
-                    $imagem = ($row->imagem);
-                }
-
-                if ($imagem == null || $imagem == false) {
-                    $imagem = file_get_contents('no-image.png');
-                }
-                header("Content-Type: image/gif;");
-                echo ($imagem);
+                echo $this->produto_dao->getProdutoImagemByIdProduto($idProduto, getDadosTokenJson($token)->id);
             }
         }
     }
 
-    function getProduto($idProduto, $idUsuario) {
-        $this->load->database();
-        $query = $this->db->query("SELECT * FROM produto where ativo = true and id = " . $idProduto . " and id_usuario = " . $idUsuario);
-        foreach ($query->result() as $row) {
-            $queryFornecedor = $this->db->query("SELECT * FROM fornecedor where ativo = true and id = " . $row->id_fornecedor);
-            $fornecedor = null;
-            foreach ($queryFornecedor->result() as $rowFornecedor) {
-                $fornecedor = array('id' => $rowFornecedor->id, 'descricao' => $rowFornecedor->descricao, 'email' => $rowFornecedor->email, 'telefone' => $rowFornecedor->telefone);
-            }
-            return $produto = array('id' => $row->id, 'descricao' => $row->descricao, 'valor' => $row->valor, 'observacao' => $row->observacao, 'estoque' => $row->estoque, 'fornecedor' => $fornecedor);
+    public function getProduto() {
+        $data = json_decode(file_get_contents('php://input'), true);
+        $retorno = null;
+        if (isset($data['token']) && $data['token'] != null && jwt_validate($data['token']) && isset($data['idProduto']) && $data['idProduto'] > 0) {
+            $retorno = array('token' => $data['token'], 'produto' => $this->produto_dao->getProdutoByIdProduto($data['idProduto'], getDadosTokenJson($data['token'])->id));
+        } else {
+            $retorno = array('token' => false);
         }
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($retorno);
     }
 
     public function enviarProduto() {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $jwtUtil = new JwtUtil();
         $dados = json_decode($_POST['dados']);
         $token = $_POST['token'];
         $funcao = $_POST['tipoFuncao'];
@@ -170,137 +67,37 @@ class Produto extends CI_Controller {
         if (isset($_FILES['imagem']['tmp_name'])) {
             $imagem = file_get_contents($_FILES['imagem']['tmp_name']);
         }
-        if ($token != null && $jwtUtil->validate($token)) {
+        if ($token != null && jwt_validate($token)) {
             if ($funcao == 'inserir') {
-                $retorno = $this->insertProduto($dados, $token, $imagem);
+                $retorno = $this->produto_dao->insertProduto($dados, $imagem, getDadosTokenJson($token)->id);
+                $retorno["token"] = $token;
             } else if ($funcao == 'alterar') {
-                $retorno = $this->updatetProduto($dados, $token, $imagem);
+                $retorno = $this->produto_dao->updatetProduto($dados, $imagem, getDadosTokenJson($token)->id);
+                $retorno["token"] = $token;
             } else if ($funcao == 'deletar') {
-                $retorno = $this->deleteProduto($dados, $token);
+                $retorno = $this->produto_dao->deleteProduto($dados, getDadosTokenJson($token)->id);
+                $retorno["token"] = $token;
             }
         } else {
             $retorno = array('token' => false);
         }
-
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($retorno);
     }
 
-    function insertProduto($dados, $token, $imagem) {
-        $jwtUtil = new JwtUtil();
-        $retorno = null;
-        $dadosToken = json_decode($jwtUtil->decode($token));
-        $fornecedor = $dados->fornecedor;
-        if ($dados->valor == 0) {
-            $dados->valor = 0.00;
-        }
-        if ($imagem == false) {
-            $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
-                'estoque' => 0, 'id_fornecedor' => $fornecedor->id, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
-        } else {
-            $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
-                'estoque' => 0, 'id_fornecedor' => $fornecedor->id, 'imagem' => $imagem, 'id_usuario' => $dadosToken->id, 'ativo' => '1');
-        }
-        $this->load->database();
-        $this->db->insert('produto', $produto);
-        $produto_id = 0;
-        $query = $this->db->query("SELECT LAST_INSERT_ID() as id FROM produto WHERE ativo = true AND id_usuario = " . $dadosToken->id . " LIMIT 1");
-        foreach ($query->result() as $row) {
-            $produto_id = $row->id;
-        }
-        return array('token' => $token, 'msgRetorno' => 'Cadastrado com sucesso!', 'produto' => $this->getProduto($produto_id, $dadosToken->id));
-    }
-
-    function updatetProduto($dados, $token, $imagem) {
-        $jwtUtil = new JwtUtil();
-        $dadosToken = json_decode($jwtUtil->decode($token));
-        $fornecedor = $dados->fornecedor;
-        if ($dados->valor == 0) {
-            $dados->valor = 0.00;
-        }
-        if ($imagem == false) {
-            $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
-                'id_fornecedor' => $fornecedor->id);
-        } else {
-            $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
-                'id_fornecedor' => $fornecedor->id, 'imagem' => $imagem);
-        }
-        $this->load->database();
-        $this->db->where('id', $dados->id);
-        $this->db->where('id_usuario', $dadosToken->id);
-        $this->db->update('produto', $produto);
-        return array('token' => $token, 'msgRetorno' => 'Alterado com sucesso!', 'produto' => $this->getProduto($dados->id, $dadosToken->id));
-    }
-
-    function deleteProduto($dados, $token) {
-        $jwtUtil = new JwtUtil();
-        $produto = array('ativo' => '0');
-        $dadosToken = json_decode($jwtUtil->decode($token));
-        $this->load->database();
-        $this->db->where('id', $dados->id);
-        $this->db->where('id_usuario', $dadosToken->id);
-        $this->db->update('produto', $produto);
-        return array('token' => $token, 'msgRetorno' => 'Deletado com sucesso!');
-    }
-
-    function getEstoqueProduto($codigoProduto, $codigoUsuario) {
-        $retorno = null;
-        if (isset($codigoProduto) && $codigoProduto != null && $codigoProduto > 0) {
-            $this->load->database();
-            $query = $this->db->query("SELECT * FROM produto where ativo = true and id_usuario = " . $codigoUsuario . " AND id =  " . $codigoProduto);
-            foreach ($query->result() as $row) {
-                $retorno = $row->estoque;
-            }
-        } else {
-            $retorno = null;
-        }
-        return $retorno;
-    }
-
     public function movimentarProduto() {
         $data = json_decode(file_get_contents('php://input'), true);
-        $jwtUtil = new JwtUtil();
-        $token = $data['token'];
-        $dados = $data['dados'];
         $retorno = null;
-        if ($token != null && $jwtUtil->validate($token)) {
-            $retorno = array('token' => $token);
-            if ($dados != null) {
-                $dadosToken = json_decode($jwtUtil->decode($token));
-                $estoqueAtual = $this->getEstoqueProduto($dados['id'], $dadosToken->id);
-                $estoque = $estoqueAtual;
-                if ($dados['tipoMovimentacao'] == "1") {
-                    $estoque = $estoque + $dados['estoque_movimento'];
-                } else if ($dados['tipoMovimentacao'] == "3") {
-                    $estoque = $estoque - $dados['estoque_movimento'];
-                } else if ($dados['tipoMovimentacao'] == "4") {
-                    $estoque = $estoque - $dados['estoque_movimento'];
-                } else if ($dados['tipoMovimentacao'] == "5") {
-                    $estoque = $dados['estoque_movimento'];
-                }
-
-                if ($estoque >= 0) {
-                    $produto = array('estoque' => $estoque);
-
-                    $this->load->database();
-                    $this->db->where('id', $dados['id']);
-                    $this->db->where('id_usuario', $dadosToken->id);
-                    $this->db->update('produto', $produto);
-
-                    $produtoMovimentacao = array('observacao' => $dados['estoque_movimento_observacao'], 'quantidade' => $dados['estoque_movimento'], 'data_movimento' => date("Y-m-d H:i:s"), 'id_produto' => $dados['id'], 'tipo_movimentacao' => $dados['tipoMovimentacao'], 'id_usuario' => $dadosToken->id, 'ativo' => '1');
-                    $this->db->insert('produto_movimentacao', $produtoMovimentacao);
-
-                    $retorno = array('token' => $token, 'sucesso' => true, 'estoque' => $estoque);
-                } else {
-                    $retorno = array('token' => $token, 'sucesso' => false, 'menssagem' => 'Estoque futuro negativo!', 'estoque' => $estoqueAtual);
-                }
+        if ($data['token'] != null && jwt_validate($data['token'])) {
+            if (isset($data['dados']) && $data['dados'] != null) {
+                $retorno = $this->produto_dao->movimentarProdutoByIdProduto($data, getDadosTokenJson($data['token'])->id);
+                $retorno["token"] = $data['token'];
             } else {
-                $retorno = array('token' => $token, 'sucesso' => false);
+                $retorno = array('token' => $data['token'], 'sucesso' => false);
             }
         } else {
             $retorno = array('token' => false);
         }
-
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($retorno);
     }

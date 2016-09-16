@@ -29,3 +29,6 @@ function jwt_decode($valorJWT) {
         return null;
     }
 }
+function getDadosTokenJson($token) {
+    return json_decode(jwt_decode($token));
+}
