@@ -49,12 +49,14 @@ class Despesas_dao extends CI_Model {
         }
 
         $totalRegistro = 0;
-        $query = $this->db->query("SELECT count(*) as count FROM despesas where ativo = true " . $where . " and id_usuario = " . $idUsuario);
+        $valorTotal = 0;
+        $query = $this->db->query("SELECT count(*) as count, sum(valor) as valorTotal  FROM despesas where ativo = true " . $where . " and id_usuario = " . $idUsuario);
         foreach ($query->result() as $row) {
             $totalRegistro = $row->count;
+            $valorTotal = $row->valorTotal;
         }
 
-        return array('dados' => $listaDespesa, 'totalRegistro' => $totalRegistro);
+        return array('dados' => $listaDespesa, 'totalRegistro' => $totalRegistro, 'valorTotal' => $valorTotal);
     }
 
     function deletarDespesa($dados, $idUsuario) {

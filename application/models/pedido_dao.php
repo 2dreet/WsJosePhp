@@ -72,11 +72,15 @@ class Pedido_dao extends CI_Model {
             unset($pedido);
         }
         $totalRegistro = 0;
-        $query = $this->db->query("SELECT count(*) as count FROM pedido p where p.ativo = true " . $where . " and p.id_usuario = " . $idUsuario);
+        $valorTotal = 0;
+        $descontoTotal = 0;
+        $query = $this->db->query("SELECT count(*) as count, sum(valor) as valorTotal, sum(desconto) as descontoTotal FROM pedido p where p.ativo = true " . $where . " and p.id_usuario = " . $idUsuario);
         foreach ($query->result() as $row) {
             $totalRegistro = $row->count;
+            $valorTotal = $row->valorTotal;
+            $descontoTotal = $row->descontoTotal;
         }
-        return array('dados' => $listaPedido, 'totalRegistro' => $totalRegistro);
+        return array('dados' => $listaPedido, 'totalRegistro' => $totalRegistro, 'valorTotal' => $valorTotal, 'descontoTotal' => $descontoTotal);
     }
 
     function getPedidoByIdPedido($data, $idUsuario) {
