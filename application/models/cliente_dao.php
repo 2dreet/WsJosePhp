@@ -111,7 +111,7 @@ class Cliente_dao extends CI_Model {
         $cliente = null;
         $sql = "SELECT c.id as idC, c.cpf, c.rg, c.email, p.id as idP, p.nome, p.sobre_nome, p.sexo, p.data_nascimento, pe.id as idPe, pe.rua, pe.numero, pe.complemento, pe.bairro, pe.cidade, pe.estado, pe.cep "
                 . " FROM cliente c INNER JOIN pessoa p ON c.id_pessoa = p.id AND c.id_usuario = p.id_usuario INNER JOIN pessoa_endereco pe ON pe.id_pessoa = p.id AND pe.id_usuario = p.id_usuario "
-                . " where p.id = " . $id . " and p.id_usuario = " . $idUsuario;
+                . " where c.id = " . $id . " and c.id_usuario = " . $idUsuario;
         $query = $this->db->query($sql);
         foreach ($query->result() as $row) {
             $listaTelefone = null;
