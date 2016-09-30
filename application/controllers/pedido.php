@@ -54,7 +54,7 @@ class Pedido extends CI_Controller {
         $data = json_decode(file_get_contents('php://input'), true);
         $retorno = null;
         if (isset($data['token']) && $data['token'] != null && jwt_validate($data['token'])) {
-            $retorno = $this->pedido_dao->pagarPedidoComplento($data['dados'], getDadosTokenJson($data['token'])->id);
+            $retorno = $this->pedido_dao->pagarPedidoComplento($data, getDadosTokenJson($data['token'])->id);
             $retorno["token"] = $data['token'];
         } else {
             $retorno = array('token' => false);
@@ -67,7 +67,7 @@ class Pedido extends CI_Controller {
         $data = json_decode(file_get_contents('php://input'), true);
         $retorno = null;
         if (isset($data['token']) && $data['token'] != null && jwt_validate($data['token'])) {
-            $retorno = $this->pedido_dao->entregarPedidoByPedido($data['dados'], getDadosTokenJson($data['token'])->id);
+            $retorno = $this->pedido_dao->entregarPedidoByPedido($data, getDadosTokenJson($data['token'])->id);
             $retorno["token"] = $data['token'];
         } else {
             $retorno = array('token' => false);

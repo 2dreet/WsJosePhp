@@ -74,7 +74,7 @@ class Produto_dao extends CI_Model {
         }
     }
 
-    function insertProduto($dados, $imagem, $idUsuario) {
+    function insertProduto($dados, $idUsuario) {
         $fornecedor = $dados->fornecedor;
         if ($dados->valor == 0) {
             $dados->valor = 0.00;
@@ -82,14 +82,10 @@ class Produto_dao extends CI_Model {
         if (!isset($dados->observacao)) {
             $dados->observacao = "";
         }
-        
-        if ($imagem == false) {
-            $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
-                'estoque' => 0, 'id_fornecedor' => $fornecedor->id, 'id_usuario' => $idUsuario, 'ativo' => '1');
-        } else {
-            $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
-                'estoque' => 0, 'id_fornecedor' => $fornecedor->id, 'imagem' => $imagem, 'id_usuario' => $idUsuario, 'ativo' => '1');
-        }
+
+        $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
+            'estoque' => 0, 'id_fornecedor' => $fornecedor->id, 'id_usuario' => $idUsuario, 'ativo' => '1');
+
         $this->db->insert('produto', $produto);
         $produto_id = 0;
         $query = $this->db->query("SELECT LAST_INSERT_ID() as id FROM produto WHERE ativo = true AND id_usuario = " . $idUsuario . " LIMIT 1");
@@ -99,18 +95,14 @@ class Produto_dao extends CI_Model {
         return array('msgRetorno' => 'Cadastrado com sucesso!', 'produto' => $this->getProdutoByIdProduto($produto_id, $idUsuario));
     }
 
-    function updatetProduto($dados, $imagem, $idUsuario) {
+    function updatetProduto($dados, $idUsuario) {
         $fornecedor = $dados->fornecedor;
         if ($dados->valor == 0) {
             $dados->valor = 0.00;
         }
-        if ($imagem == false) {
-            $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
-                'id_fornecedor' => $fornecedor->id);
-        } else {
-            $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
-                'id_fornecedor' => $fornecedor->id, 'imagem' => $imagem);
-        }
+        $produto = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'observacao' => $dados->observacao,
+            'id_fornecedor' => $fornecedor->id);
+
         $this->db->where('id', $dados->id);
         $this->db->where('id_usuario', $idUsuario);
         $this->db->update('produto', $produto);
@@ -154,15 +146,25 @@ class Produto_dao extends CI_Model {
         foreach ($query->result() as $row) {
             $totalRegistro = $row->count;
         }
-        return array('dados' => $listaMovimentacaoProduto, 'totalRegistro' => $totalRegistro, 'estoque' => $this->getEstoqueProdutoByIdProduto($dados, $idUsuario));
+        return array('dados' => $listaMovimentacaoProduto, 'totalRegistro' => $totalRegistro, 'estoque' => $this->getEstoqueProdutoByIdProduto($id, $idUsuario));
+    }
+
+    function verificaEstoqueFuturo($produtoID, $idUsuario, $quantidade) {
+        $estoqueAtual = $this->getEstoqueProdutoByIdProduto($produtoID, $idUsuario);
+        if (($estoqueAtual - $quantidade) >= 0) {
+            return true;
+        }
+        return false;
     }
 
     function movimentarProdutoByIdProduto($data, $idUsuario) {
         $dados = $data['dados'];
         $estoqueAtual = $this->getEstoqueProdutoByIdProduto($dados['id'], $idUsuario);
         $estoque = $estoqueAtual;
-        if ($dados['tipoMovimentacao'] == "1") {
+        if ($dados['tipoMovimentacao'] == "1" || $dados['tipoMovimentacao'] == "6") {
             $estoque = $estoque + $dados['estoque_movimento'];
+        } else if ($dados['tipoMovimentacao'] == "2") {
+            $estoque = $estoque - $dados['estoque_movimento'];
         } else if ($dados['tipoMovimentacao'] == "3") {
             $estoque = $estoque - $dados['estoque_movimento'];
         } else if ($dados['tipoMovimentacao'] == "4") {
