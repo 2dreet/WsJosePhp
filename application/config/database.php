@@ -48,10 +48,10 @@
 $active_group = 'default';
 $active_record = TRUE;
 
-$db['default']['hostname'] = 'mysql.hostinger.com.br';
-$db['default']['username'] = 'u972938619_geven';
-$db['default']['password'] = 'dc5v75vc';
-$db['default']['database'] = 'u972938619_geven';
+$db['default']['hostname'] = 'localhost';
+$db['default']['username'] = 'jclan';
+$db['default']['password'] = 'jcuser';
+$db['default']['database'] = 'gerven';
 $db['default']['dbdriver'] = 'mysql';
 $db['default']['dbprefix'] = '';
 $db['default']['pconnect'] = TRUE;
