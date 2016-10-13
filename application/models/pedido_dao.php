@@ -193,14 +193,19 @@ class Pedido_dao extends CI_Model {
     }
 
     function inserir($dados, $idUsuario) {
-        $estoquePositivo = true;
-//        foreach ($dados['listaProduto'] as $produto) {
-//            $estoquePositivo = $this->produto_dao->verificaEstoqueFuturo($produto['id'], $idUsuario, $produto['quantidade']);
-//            if($estoquePositivo == false){
-//                 return array('msgRetorno' => 'Cadastrado com sucesso!', 'pedido' => $this->getPedidoById($pedido_id, $idUsuario));
-//            }
-//        }
-        
+        if ($dados['tipo_pedido']['id'] == 1) {
+            $retornoEstoqueNegativo = null;
+            foreach ($dados['listaProduto'] as $produto) {
+                $estoquePositivo = $this->produto_dao->verificaEstoqueFuturo($produto['id'], $idUsuario, $produto['quantidade']);
+                if ($estoquePositivo == false) {
+                    $retornoEstoqueNegativo[] = $produto['descricao'] . " - Estoque Atual (" . $this->produto_dao->getEstoqueProdutoByIdProduto($produto['id'], $idUsuario) . ")";
+                }
+            }
+            if ($retornoEstoqueNegativo != null) {
+                return array("EstoqueNegativo" => $retornoEstoqueNegativo);
+            }
+        }
+
         $dataVencimento = substr($dados['data_vencimento'], 0, 10);
         if (!isset($dados['desconto'])) {
             $dados['desconto'] = 0;
@@ -208,6 +213,10 @@ class Pedido_dao extends CI_Model {
         $pedido = array('descricao' => $dados['descricao'], 'desconto' => $dados['desconto'], 'valor' => $dados['valor'], 'data_vencimento' => $dataVencimento,
             'forma_pagamento' => $dados['forma_pagamento']['id'], 'tipo_pedido' => $dados['tipo_pedido']['id'],
             'id_cliente' => $dados['cliente']['id'], 'status' => 1, 'data_lancamento' => date("Y-m-d"), 'id_usuario' => $idUsuario, 'ativo' => '1');
+        if ($dados['tipo_pedido']['id'] == 1) {
+            $pedido['entregue'] = 1;
+            $pedido['data_entrega'] = date("Y-m-d");
+        }
         $this->db->insert('pedido', $pedido);
         $pedido_id = 0;
         $query = $this->db->query("SELECT LAST_INSERT_ID() as id FROM pedido WHERE ativo = true AND id_usuario = " . $idUsuario . " LIMIT 1");
@@ -220,8 +229,10 @@ class Pedido_dao extends CI_Model {
                 'valor' => $produto['valor'], 'id_usuario' => $idUsuario, 'ativo' => '1');
             $this->db->insert('pedido_produto', $pedido_produto);
 
-            $movimentarEstoque["dados"] = array('tipoMovimentacao' => 2, 'id' => $produto['id'], 'estoque_movimento' => $produto['quantidade'], 'estoque_movimento_observacao' => "Venda");
-            $this->produto_dao->movimentarProdutoByIdProduto($movimentarEstoque, $idUsuario);
+            if ($dados['tipo_pedido']['id'] == 1) {
+                $movimentarEstoque["dados"] = array('tipoMovimentacao' => 2, 'id' => $produto['id'], 'estoque_movimento' => $produto['quantidade'], 'estoque_movimento_observacao' => "Venda");
+                $this->produto_dao->movimentarProdutoByIdProduto($movimentarEstoque, $idUsuario);
+            }
         }
         if (isset($dados['parcelas']) && $dados['parcelas'] > 0) {
             $valorParcela = round($valorPedido / $dados['parcelas'], 2);
@@ -230,20 +241,33 @@ class Pedido_dao extends CI_Model {
                 $this->db->insert('pedido_parcelamento', $pedidoParcelamento);
             }
         }
+
         return array('msgRetorno' => 'Cadastrado com sucesso!', 'pedido' => $this->getPedidoById($pedido_id, $idUsuario));
     }
 
     function alterar($dados, $idUsuario) {
+        if ($dados['tipo_pedido']['id'] == 1) {
+            $retornoEstoqueNegativo = null;
+            foreach ($dados['listaProduto'] as $produto) {
+                $estoquePositivo = $this->produto_dao->verificaEstoqueFuturo($produto['id'], $idUsuario, $produto['quantidade']);
+                if ($estoquePositivo == false) {
+                    $retornoEstoqueNegativo[] = $produto['descricao'] . " - Estoque Atual (" . $this->produto_dao->getEstoqueProdutoByIdProduto($produto['id'], $idUsuario) . ")";
+                }
+            }
+            if ($retornoEstoqueNegativo != null) {
+                return array("EstoqueNegativo" => $retornoEstoqueNegativo);
+            }
+        }
         $pedido_id = $dados['id'];
         $pedidoBanco = $this->getPedidoById($pedido_id, $idUsuario);
         $this->db->where('pedido', $pedido_id);
         $this->db->where('id_usuario', $idUsuario);
         $this->db->delete('pedido_parcelamento');
 
-        if($pedidoBanco['tipo_pedido'] == 1){
+        if ($pedidoBanco['tipo_pedido'] == 1) {
             $query = $this->db->query("SELECT * FROM pedido_produto where ativo = true and pedido = " . $pedido_id . " and id_usuario = " . $idUsuario);
             foreach ($query->result() as $row) {
-                $movimentarEstoque["dados"] = array('tipoMovimentacao' => 6, 'id' => $row->produto, 'estoque_movimento' => $row->quantidade , 'estoque_movimento_observacao' => "Edição de Pedido");
+                $movimentarEstoque["dados"] = array('tipoMovimentacao' => 6, 'id' => $row->produto, 'estoque_movimento' => $row->quantidade, 'estoque_movimento_observacao' => "Edição de Pedido");
                 $this->produto_dao->movimentarProdutoByIdProduto($movimentarEstoque, $idUsuario);
             }
         }
@@ -267,8 +291,8 @@ class Pedido_dao extends CI_Model {
             $pedido_produto = array('pedido' => $pedido_id, 'produto' => $produto['id'], 'quantidade' => $produto['quantidade'],
                 'valor' => $produto['valor'], 'id_usuario' => $idUsuario, 'ativo' => '1');
             $this->db->insert('pedido_produto', $pedido_produto);
-            
-            if($dados['tipo_pedido']['id'] == 1){
+
+            if ($dados['tipo_pedido']['id'] == 1) {
                 $movimentarEstoque["dados"] = array('tipoMovimentacao' => 2, 'id' => $produto['id'], 'estoque_movimento' => $produto['quantidade'], 'estoque_movimento_observacao' => "Venda");
                 $this->produto_dao->movimentarProdutoByIdProduto($movimentarEstoque, $idUsuario);
             }
@@ -284,6 +308,15 @@ class Pedido_dao extends CI_Model {
     }
 
     function deletar($dados, $idUsuario) {
+        
+        if ($dados['tipo_pedido']['id'] == 1) {
+            $query = $this->db->query("SELECT * FROM pedido_produto where ativo = true and pedido = " . $dados['id'] . " and id_usuario = " . $idUsuario);
+            foreach ($query->result() as $row) {
+                $movimentarEstoque["dados"] = array('tipoMovimentacao' => 7, 'id' => $row->produto, 'estoque_movimento' => $row->quantidade, 'estoque_movimento_observacao' => "Edição de Pedido");
+                $this->produto_dao->movimentarProdutoByIdProduto($movimentarEstoque, $idUsuario);
+            }
+        }
+
         $pedido = array('ativo' => '0');
         $this->db->where('id', $dados['id']);
         $this->db->where('id_usuario', $idUsuario);

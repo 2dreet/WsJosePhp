@@ -161,13 +161,9 @@ class Produto_dao extends CI_Model {
         $dados = $data['dados'];
         $estoqueAtual = $this->getEstoqueProdutoByIdProduto($dados['id'], $idUsuario);
         $estoque = $estoqueAtual;
-        if ($dados['tipoMovimentacao'] == "1" || $dados['tipoMovimentacao'] == "6") {
+        if ($dados['tipoMovimentacao'] == "1" || $dados['tipoMovimentacao'] == "6" || $dados['tipoMovimentacao'] == "7") {
             $estoque = $estoque + $dados['estoque_movimento'];
-        } else if ($dados['tipoMovimentacao'] == "2") {
-            $estoque = $estoque - $dados['estoque_movimento'];
-        } else if ($dados['tipoMovimentacao'] == "3") {
-            $estoque = $estoque - $dados['estoque_movimento'];
-        } else if ($dados['tipoMovimentacao'] == "4") {
+        } else if ($dados['tipoMovimentacao'] == "2" || $dados['tipoMovimentacao'] == "3" || $dados['tipoMovimentacao'] == "4") {
             $estoque = $estoque - $dados['estoque_movimento'];
         } else if ($dados['tipoMovimentacao'] == "5") {
             $estoque = $dados['estoque_movimento'];
