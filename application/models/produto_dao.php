@@ -8,6 +8,7 @@ class Produto_dao extends CI_Model {
     function __construct() {
         parent::__construct();
         $this->load->database();
+        $this->load->model('fornecedor_dao');
     }
 
     function getListaproduto($data, $idUsuario) {
@@ -48,7 +49,11 @@ class Produto_dao extends CI_Model {
                 $fornecedor = array('id' => $rowFornecedor->id, 'descricao' => $rowFornecedor->descricao, 'email' => $rowFornecedor->email, 'telefone' => $rowFornecedor->telefone);
             }
 
-            $produto = array('id' => $row->id, 'descricao' => $row->descricao, 'valor' => $row->valor, 'observacao' => $row->observacao, 'estoque' => $row->estoque, 'fornecedor' => $fornecedor);
+            $lucro = $row->valor * ($this->fornecedor_dao->getPorcentagem($row->id_fornecedor)/100);
+            
+            $produto = array('id' => $row->id, 'descricao' => $row->descricao, 'valor' => $row->valor, 'observacao' => $row->observacao, 'estoque' => $row->estoque, 'fornecedor' => $fornecedor,
+                'lucro' => $lucro);
+            
             $listaProduto[] = ($produto);
             unset($produto);
             unset($fornecedor);

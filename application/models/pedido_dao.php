@@ -103,7 +103,7 @@ class Pedido_dao extends CI_Model {
 
     function getListaProdutoByIdPedido($idPedido, $idUsuario) {
         $listaProduto = null;
-        $query = $this->db->query("SELECT pp.*,p.id as pId, p.descricao, p.valor as pValor FROM pedido_produto pp inner join produto p on pp.produto = p.id and pp.id_usuario = p.id_usuario "
+        $query = $this->db->query("SELECT pp.*,p.id as pId, p.descricao, pp.valor as pValor FROM pedido_produto pp inner join produto p on pp.produto = p.id and pp.id_usuario = p.id_usuario "
                 . " where pp.ativo = true and pp.pedido = " . $idPedido . " and pp.id_usuario = " . $idUsuario);
         foreach ($query->result() as $row) {
             $produto = array('id_pedido' => $row->id, 'id' => $row->pId, 'descricao' => $row->descricao, 'valor' => $row->pValor, 'quantidade' => $row->quantidade);

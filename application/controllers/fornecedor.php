@@ -22,7 +22,7 @@ class Fornecedor extends CI_Controller {
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($retorno);
     }
-
+    
     public function enviarFornecedor() {
         $data = json_decode(file_get_contents('php://input'), true);
         $retorno = null;

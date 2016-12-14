@@ -42,7 +42,7 @@ class Fornecedor_dao extends CI_Model {
         $listaFornecedor = null;
         $query = $this->db->query("SELECT * FROM fornecedor where ativo = true " . $where . " and id_usuario = " . $idUsuario . " LIMIT " . $pagina . "," . $limit);
         foreach ($query->result() as $row) {
-            $fornecedor = array('id' => $row->id, 'descricao' => $row->descricao, 'email' => $row->email, 'telefone' => $row->telefone);
+            $fornecedor = array('id' => $row->id, 'descricao' => $row->descricao, 'email' => $row->email, 'telefone' => $row->telefone, 'porcentagem' => $row->porcentagem);
             $listaFornecedor[] = $fornecedor;
             unset($fornecedor);
         }
@@ -55,6 +55,14 @@ class Fornecedor_dao extends CI_Model {
         return array('dados' => $listaFornecedor, 'totalRegistro' => $totalRegistro);
     }
 
+    public function getPorcentagem($fornecedorID) {
+        $query = $this->db->query("SELECT * FROM fornecedor where id = " . $fornecedorID);
+        foreach ($query->result() as $row) {
+            return $row->porcentagem;
+        }
+        return 0;
+    }
+
     function deletarFornecedor($dados, $idUsuario) {
         $fornecedor = array('ativo' => '0');
         $this->db->where('id', $dados['id']);
@@ -64,13 +72,13 @@ class Fornecedor_dao extends CI_Model {
     }
 
     function inserirFornecedor($dados, $idUsuario) {
-        $fornecedor = array('descricao' => $dados['descricao'], 'email' => $dados['email'], 'telefone' => $dados['telefone'], 'id_usuario' => $idUsuario, 'ativo' => '1');
+        $fornecedor = array('descricao' => $dados['descricao'], 'email' => $dados['email'], 'telefone' => $dados['telefone'], 'porcentagem' => $dados['porcentagem'], 'id_usuario' => $idUsuario, 'ativo' => '1');
         $this->db->insert('fornecedor', $fornecedor);
         return array('msgRetorno' => 'Cadastrado com sucesso!');
     }
 
     function alterarFornecedor($dados, $idUsuario) {
-        $fornecedor = array('descricao' => $dados['descricao'], 'email' => $dados['email'], 'telefone' => $dados['telefone']);
+        $fornecedor = array('descricao' => $dados['descricao'], 'email' => $dados['email'], 'telefone' => $dados['telefone'], 'porcentagem' => $dados['porcentagem']);
         $this->db->where('id', $dados['id']);
         $this->db->where('id_usuario', $idUsuario);
         $this->db->update('fornecedor', $fornecedor);
