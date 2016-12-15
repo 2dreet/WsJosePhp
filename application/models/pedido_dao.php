@@ -9,6 +9,7 @@ class Pedido_dao extends CI_Model {
         parent::__construct();
         $this->load->model('cliente_dao');
         $this->load->model('produto_dao');
+        $this->load->model('fornecedor_dao');
         $this->load->database();
     }
 
@@ -75,13 +76,20 @@ class Pedido_dao extends CI_Model {
         $totalRegistro = 0;
         $valorTotal = 0;
         $descontoTotal = 0;
+        $lucroTotal = 0;
         $query = $this->db->query("SELECT count(*) as count, sum(valor) as valorTotal, sum(desconto) as descontoTotal FROM pedido p where p.ativo = true " . $where . " and p.id_usuario = " . $idUsuario);
         foreach ($query->result() as $row) {
             $totalRegistro = $row->count;
             $valorTotal = $row->valorTotal;
             $descontoTotal = $row->descontoTotal;
         }
-        return array('dados' => $listaPedido, 'totalRegistro' => $totalRegistro, 'valorTotal' => $valorTotal, 'descontoTotal' => $descontoTotal);
+        
+        $query = $this->db->query("SELECT sum((pp.valor * (pp.porcentagem / 100)) * pp.quantidade)  as lucro FROM pedido p inner join pedido_produto pp on pp.pedido = p.id where p.ativo = true " . $where . " and p.id_usuario = " . $idUsuario);
+        foreach ($query->result() as $row) {
+            $lucroTotal = $row->lucro - $descontoTotal;
+        }
+        
+        return array('dados' => $listaPedido, 'totalRegistro' => $totalRegistro, 'valorTotal' => $valorTotal, 'descontoTotal' => $descontoTotal, 'lucroTotal' => $lucroTotal);
     }
 
     function getPedidoByIdPedido($data, $idUsuario) {
@@ -106,7 +114,7 @@ class Pedido_dao extends CI_Model {
         $query = $this->db->query("SELECT pp.*,p.id as pId, p.descricao, pp.valor as pValor FROM pedido_produto pp inner join produto p on pp.produto = p.id and pp.id_usuario = p.id_usuario "
                 . " where pp.ativo = true and pp.pedido = " . $idPedido . " and pp.id_usuario = " . $idUsuario);
         foreach ($query->result() as $row) {
-            $produto = array('id_pedido' => $row->id, 'id' => $row->pId, 'descricao' => $row->descricao, 'valor' => $row->pValor, 'quantidade' => $row->quantidade);
+            $produto = array('id_pedido' => $row->id, 'id' => $row->pId, 'descricao' => $row->descricao, 'valor' => $row->pValor, 'quantidade' => $row->quantidade, 'lucro' => ($row->pValor * ($row->porcentagem / 100)));
             $listaProduto[] = $produto;
             unset($produto);
         }
@@ -226,7 +234,7 @@ class Pedido_dao extends CI_Model {
         $valorPedido = $dados['valor'] - $dados['desconto'];
         foreach ($dados['listaProduto'] as $produto) {
             $pedido_produto = array('pedido' => $pedido_id, 'produto' => $produto['id'], 'quantidade' => $produto['quantidade'],
-                'valor' => $produto['valor'], 'id_usuario' => $idUsuario, 'ativo' => '1');
+                'valor' => $produto['valor'], 'id_usuario' => $idUsuario, 'porcentagem' => $this->fornecedor_dao->getPorcentagemByIdProduto($produto['id']),'ativo' => '1');
             $this->db->insert('pedido_produto', $pedido_produto);
 
             if ($dados['tipo_pedido']['id'] == 1) {
@@ -308,7 +316,7 @@ class Pedido_dao extends CI_Model {
     }
 
     function deletar($dados, $idUsuario) {
-        
+
         if ($dados['tipo_pedido']['id'] == 1) {
             $query = $this->db->query("SELECT * FROM pedido_produto where ativo = true and pedido = " . $dados['id'] . " and id_usuario = " . $idUsuario);
             foreach ($query->result() as $row) {

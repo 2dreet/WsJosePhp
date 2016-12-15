@@ -42,4 +42,25 @@ class Usuario_dao extends CI_Model {
         }
     }
 
+    function alterarSenhaUsuarioById($data) {
+        $token = $data['token'];
+        $dadosToken = json_decode(jwt_decode($token));
+        $this->db->where('id', $dadosToken->id);
+        $this->db->update('usuario', array('senha' => $data['dados']['nova_senha']));
+        return array('token' => $data['token'], 'msgRetorno' => 'Senha Alterada com sucesso!');
+    }
+
+    function verificaUsuarioByIdSenha($data) {
+        $token = $data['token'];
+        $dados = $data['dados'];
+        $dadosToken = json_decode(jwt_decode($token));
+        $sql = "SELECT * FROM usuario where id = " . $dadosToken->id . " AND senha = '" . $dados['senha_atual'] . "'";
+        $query = $this->db->query($sql);
+        if ($query->num_rows() > 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
 }

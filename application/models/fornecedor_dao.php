@@ -62,6 +62,14 @@ class Fornecedor_dao extends CI_Model {
         }
         return 0;
     }
+    
+    public function getPorcentagemByIdProduto($produtoID) {
+        $query = $this->db->query("SELECT porcentagem FROM produto inner join fornecedor on produto.id_fornecedor = fornecedor.id where produto.id = " . $produtoID);
+        foreach ($query->result() as $row) {
+            return $row->porcentagem;
+        }
+        return 0;
+    }
 
     function deletarFornecedor($dados, $idUsuario) {
         $fornecedor = array('ativo' => '0');

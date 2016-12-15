@@ -15,23 +15,26 @@ class Inicio_dao extends CI_Model {
         $whereDespesas = "";
 
         if (isset($data['dataInicio']) && $data['dataInicio'] != null) {
-            $where .= " AND date(p.data_lancamento) >= date('" . substr($data['dataInicio'], 0, 10) . "')";
+            $where .= " AND date(p.data_vencimento) >= date('" . substr($data['dataInicio'], 0, 10) . "')";
             $whereDespesas .= " AND date(data_lancamento) >= date('" . substr($data['dataInicio'], 0, 10) . "')";
         }
         if (isset($data['dataFim']) && $data['dataFim'] != null) {
-            $where .= " AND date(p.data_lancamento) <= date('" . substr($data['dataFim'], 0, 10) . "')";
+            $where .= " AND date(p.data_vencimento) <= date('" . substr($data['dataFim'], 0, 10) . "')";
             $whereDespesas .= " AND date(data_lancamento) <= date('" . substr($data['dataFim'], 0, 10) . "')";
         }
-        $query = $this->db->query("select " .
+        $sql = "select " .
+                "convert((SELECT sum(p.valor - p.desconto) as valor FROM pedido p where p.ativo = true AND p.status = 2 " . $where . "), decimal(9,2)) as pago, " .
+                "convert((SELECT sum(p.valor - p.desconto) as valor FROM pedido p where p.ativo = true AND p.status = 1 " . $where . "), decimal(9,2)) as nao_pago, " .
+                "(SELECT sum(desconto) FROM pedido p where p.ativo = true AND p.status = 2 " . $where . " and p.id) as total_desconto, " .
                 "convert((SELECT sum(valor) as despesas FROM despesas where ativo = true and id_usuario = " . $idUsuario . $whereDespesas . "), decimal(9,2)) as despesas, " .
-                "convert((SELECT sum(p.valor - p.desconto) as valor FROM pedido p where p.ativo = true AND p.status = 2 " . $where . " and p.id not in(SELECT pp.pedido FROM pedido_parcelamento pp where pp.ativo = true AND pp.pedido = p.id and pp.id_usuario = p.id_usuario)), decimal(9,2)) as pago, " .
-                "convert((SELECT sum(p.valor - p.desconto) as valor FROM pedido p where p.ativo = true AND p.status = 1 " . $where . " and p.id not in(SELECT pp.pedido FROM pedido_parcelamento pp where pp.ativo = true AND pp.pedido = p.id and pp.id_usuario = p.id_usuario)), decimal(9,2)) as nao_pago, " .
                 "(SELECT count(*) FROM pedido p where p.ativo = true AND p.status = 2 " . $where . " and p.id) as qtd_pago, " .
                 "(SELECT count(*) FROM pedido p where p.ativo = true AND p.status = 1 " . $where . " and p.id) as qtd_nao_pago, " .
                 "(SELECT count(*) FROM pedido p where p.ativo = true AND p.status = 3 " . $where . " and p.id) as qtd_pago_parcial, " .
-                "convert((SELECT sum(pp.valor) as valor FROM pedido_parcelamento pp inner join pedido p on pp.pedido = p.id and pp.id_usuario = p.id_usuario where p.ativo = true AND pp.ativo = true AND pp.status = 1 " . $where . "), decimal(9,2)) as nao_pago_parcela, " .
-                "convert((SELECT sum(pp.valor) as valor FROM pedido_parcelamento pp inner join pedido p on pp.pedido = p.id and pp.id_usuario = p.id_usuario where p.ativo = true AND pp.ativo = true AND pp.status = 2 " . $where . "), decimal(9,2)) as pago_parcela, " .
-                "convert((SELECT sum((select sum((pd.valor * (f.porcentagem/100)) * pp.quantidade) as lucro from pedido_produto pp  inner join produto pd on pp.produto = pd.id inner join fornecedor f on pd.id_fornecedor = f.id where p.id = pp.pedido and pp.ativo = true)) as lucro FROM pedido p where p.ativo = true AND p.status = 2 " . $where . " and p.id not in(SELECT pp.pedido FROM pedido_parcelamento pp where pp.ativo = true AND pp.pedido = p.id and pp.id_usuario = p.id_usuario)), decimal(9,2)) as lucro");
+                "convert((SELECT sum(pp.valor) as valor FROM pedido_parcelamento pp inner join pedido p on pp.pedido = p.id and pp.id_usuario = p.id_usuario where p.ativo = true AND p.status = 3 AND pp.ativo = true AND pp.status = 1 " . $where . "), decimal(9,2)) as nao_pago_parcela, " .
+                "convert((SELECT sum(pp.valor) as valor FROM pedido_parcelamento pp inner join pedido p on pp.pedido = p.id and pp.id_usuario = p.id_usuario where p.ativo = true AND p.status = 3 AND pp.ativo = true AND pp.status = 2 " . $where . "), decimal(9,2)) as pago_parcela, " .
+                "convert((SELECT sum((select sum((pp.valor * (pp.porcentagem / 100)) * pp.quantidade) as lucro from pedido_produto pp where p.id = pp.pedido and pp.ativo = true)) as lucro FROM pedido p where p.ativo = true AND p.status = 2  " . $where . "), decimal(9,2)) as lucro";
+
+        $query = $this->db->query($sql);
         foreach ($query->result() as $row) {
             $valorDespesas = $row->despesas;
             $valorPago = $row->pago;
@@ -39,6 +42,7 @@ class Inicio_dao extends CI_Model {
             $valorNaoPagoParcela = $row->nao_pago_parcela;
             $valorPagoParcela = $row->pago_parcela;
             $lucro = $row->lucro;
+            $desconto = $row->total_desconto;
             if ($valorDespesas == null) {
                 $valorDespesas = 0.00;
             }
@@ -56,6 +60,9 @@ class Inicio_dao extends CI_Model {
             }
             if ($lucro == null) {
                 $lucro = 0.00;
+            }
+            if ($desconto == null) {
+                $desconto = 0.00;
             }
             $valorNaoPago = $valorNaoPago + $valorNaoPagoParcela;
             $valorPago = $valorPago + $valorPagoParcela;
@@ -76,8 +83,8 @@ class Inicio_dao extends CI_Model {
                 $totalPagoParcial = 0;
             }
 
-            return array('valorRecebido' => $valorPago, 'valorReceber' => $valorNaoPago, 'valorDespesas' => $valorDespesas, 'lucro' => $lucro,
-                'grafico' => array($totalPago, $totalPagoParcial, $totalNaoPago));
+            return array('valorRecebido' => $valorPago, 'valorReceber' => $valorNaoPago, 'valorDespesas' => $valorDespesas, 'lucro' => $lucro - $desconto,
+                'desconto' => $desconto, 'grafico' => array($totalPago, $totalPagoParcial, $totalNaoPago));
         }
         return array('pago' => 0.00, 'nao_pago' => 0.00, 'nao_pago_parcela' => 0.00);
     }
