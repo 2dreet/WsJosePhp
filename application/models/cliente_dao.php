@@ -106,7 +106,7 @@ class Cliente_dao extends CI_Model {
         }
         return array('dados' => $listaCliente, 'totalRegistro' => $totalRegistro);
     }
-    
+
     function getClienteByClienteId($id, $idUsuario) {
         $cliente = null;
         $sql = "SELECT c.id as idC, c.cpf, c.rg, c.email, p.id as idP, p.nome, p.sobre_nome, p.sexo, p.data_nascimento, pe.id as idPe, pe.rua, pe.numero, pe.complemento, pe.bairro, pe.cidade, pe.estado, pe.cep "
@@ -140,7 +140,11 @@ class Cliente_dao extends CI_Model {
         if (isset($dados['listaTelefoneRemovido'])) {
             $dadosTelefoneRemovido = $dados['listaTelefoneRemovido'];
         }
-        $dataNascimento = substr($dados['pessoa']['dataNascimento'], 0, 10);
+        if (!isset($dados['pessoa']['dataNascimento'])) {
+            $dataNascimento = null;
+        } else {
+            $dataNascimento = substr($dados['pessoa']['dataNascimento'], 0, 10);
+        }
         $pessoa = array('nome' => $dados['pessoa']['nome'], 'sobre_nome' => $dados['pessoa']['sobreNome'], 'sexo' => $dados['pessoa']['sexo'], 'data_cadastro' => date("Y-m-d"), 'data_nascimento' => $dataNascimento, 'id_usuario' => $idUsuario, 'ativo' => '1');
         $this->db->where('id', $dados['pessoa']['id']);
         $this->db->where('id_usuario', $idUsuario);
@@ -195,7 +199,11 @@ class Cliente_dao extends CI_Model {
     function insertCliente($dados, $idUsuario) {
         $dadosEndereco = $dados['endereco'];
         $dadosTelefone = $dados['listaTelefone'];
-        $dataNascimento = substr($dados['pessoa']['dataNascimento'], 0, 10);
+        if (!isset($dados['pessoa']['dataNascimento'])) {
+            $dataNascimento = null;
+        } else {
+            $dataNascimento = substr($dados['pessoa']['dataNascimento'], 0, 10);
+        }
         $pessoa = array('nome' => $dados['pessoa']['nome'], 'sobre_nome' => $dados['pessoa']['sobreNome'], 'sexo' => $dados['pessoa']['sexo'], 'data_cadastro' => date("Y-m-d"), 'data_nascimento' => $dataNascimento, 'id_usuario' => $idUsuario, 'ativo' => '1');
         $this->db->insert('pessoa', $pessoa);
         $pessoa_id = 0;
