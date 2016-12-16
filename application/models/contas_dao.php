@@ -68,9 +68,10 @@ class Contas_dao extends CI_Model {
     }
 
     function inserirConta($dados, $idUsuario) {
-        $despesas = array('descricao' => $dados['descricao'], 'valor' => $dados['valor'], 'data_lancamento' => substr($dados['data_lancamento'], 0, 10), 'id_usuario' => $idUsuario, 'ativo' => '1');
-        $this->db->insert('despesas', $despesas);
-        return array('msgRetorno' => 'Cadastrado com sucesso!');
+        $conta = array('descricao' => $dados->descricao, 'valor' => $dados->valor, 'data_vencimento' => substr($dados->data_vencimento, 0, 10),
+            'usuario_id' => $idUsuario, 'ativo' => '1', 'tipo' => $dados->tipo->id, 'status' => $dados->status->id);
+        $this->db->insert('conta', $conta);
+        return $this->db->insert_id();
     }
 
     function alterarConta($dados, $idUsuario) {
