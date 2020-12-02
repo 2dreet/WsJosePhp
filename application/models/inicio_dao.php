@@ -12,6 +12,7 @@ class Inicio_dao extends CI_Model {
 
     function getDadosIniciais($data, $idUsuario) {
         $where = " and p.id_usuario = " . $idUsuario;
+        
         $whereDespesas = "";
 
         if (isset($data['dataInicio']) && $data['dataInicio'] != null) {
@@ -32,9 +33,9 @@ class Inicio_dao extends CI_Model {
                 "(SELECT count(*) FROM pedido p where p.ativo = true AND p.status = 3 " . $where . " and p.id) as qtd_pago_parcial, " .
                 "convert((SELECT sum(pp.valor) as valor FROM pedido_parcelamento pp inner join pedido p on pp.pedido = p.id and pp.id_usuario = p.id_usuario where p.ativo = true AND p.status = 3 AND pp.ativo = true AND pp.status = 1 " . $where . "), decimal(9,2)) as nao_pago_parcela, " .
                 "convert((SELECT sum(pp.valor) as valor FROM pedido_parcelamento pp inner join pedido p on pp.pedido = p.id and pp.id_usuario = p.id_usuario where p.ativo = true AND p.status = 3 AND pp.ativo = true AND pp.status = 2 " . $where . "), decimal(9,2)) as pago_parcela,"
-                . " (SELECT convert(sum(valor * estoque), decimal(9,2)) as valor_estoque FROM produto inner join fornecedor on fornecedor.id = id_fornecedor where produto.ativo = true) as valor_estoque,"
-                . " (SELECT convert(sum((valor * (fornecedor.porcentagem/100)) * estoque), decimal(9,2)) as lucro_estoque FROM produto inner join fornecedor on fornecedor.id = id_fornecedor where produto.ativo = true) valor_lucro_estoque, " .
-                "convert((SELECT sum((select sum((pp.valor * (pp.porcentagem / 100)) * pp.quantidade) as lucro from pedido_produto pp where p.id = pp.pedido and pp.ativo = true)) as lucro FROM pedido p where p.ativo = true AND p.status = 2  " . $where . "), decimal(9,2)) as lucro";
+                . " (SELECT convert(sum(valor * estoque), decimal(9,2)) as valor_estoque FROM produto inner join fornecedor on fornecedor.id = id_fornecedor where produto.id_usuario = " . $idUsuario . " and produto.ativo = true) as valor_estoque,"
+                . " (SELECT convert(sum((valor * (fornecedor.porcentagem/100)) * estoque), decimal(9,2)) as lucro_estoque FROM produto inner join fornecedor on fornecedor.id = id_fornecedor where  produto.id_usuario = " . $idUsuario . " and produto.ativo = true) valor_lucro_estoque, " .
+                "convert((SELECT sum((select sum((pp.valor * (pp.porcentagem / 100)) * pp.quantidade) as lucro from pedido_produto pp where p.id_usuario = " . $idUsuario . " and p.id = pp.pedido and pp.ativo = true)) as lucro FROM pedido p where p.ativo = true AND p.status = 2  " . $where . "), decimal(9,2)) as lucro";
 
         $query = $this->db->query($sql);
         foreach ($query->result() as $row) {
