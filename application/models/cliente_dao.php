@@ -156,6 +156,9 @@ class Cliente_dao extends CI_Model {
         if (!isset($dados['cpf'])) {
             $dados['cpf'] = "";
         }
+        if (!isset($dados['email'])) {
+            $dados['email'] = "";
+        }
         $cliente = array('cpf' => $dados['cpf'], 'rg' => $dados['rg'], 'email' => $dados['email']);
         $this->db->where('id', $dados['id']);
         $this->db->where('id_pessoa', $pessoa_id);
@@ -216,6 +219,9 @@ class Cliente_dao extends CI_Model {
         }
         if (!isset($dados['cpf'])) {
             $dados['cpf'] = "";
+        }
+        if (!isset($dados['email'])) {
+            $dados['email'] = "";
         }
         $cliente = array('cpf' => $dados['cpf'], 'rg' => $dados['rg'], 'email' => $dados['email'], 'id_pessoa' => $pessoa_id, 'id_usuario' => $idUsuario);
         $this->db->insert('cliente', $cliente);
